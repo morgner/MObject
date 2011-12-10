@@ -1,4 +1,11 @@
 MObject
 
-is an object to be used in music and art.
+is an physical, 'intelligent' object to be used in music and art.
 
+It responds to handling and action, both are yet to be defined.
+
+There are different sensors - currently a 3 axes accelerometer - and different
+output devices - currently 5 LEDs and one digital-to-analog converter - to do
+the experiments and feasibility studies.
+
+Currently te LEDs are used as 'debugging display'
