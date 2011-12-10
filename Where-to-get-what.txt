@@ -1,0 +1,9 @@
+WHERE TO GET WHAT?
+
+Development Environment
+
+http://arduino.cc/en/Main/Software
+
+USB-TTY Driver
+
+http://www.ftdichip.com/Drivers/VCP.htm
