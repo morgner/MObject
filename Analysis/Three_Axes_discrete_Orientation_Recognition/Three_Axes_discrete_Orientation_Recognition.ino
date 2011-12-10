@@ -166,7 +166,7 @@ char ratio(int input)
   const char threshold = (inMax-inMin) / 5;
   if (input > inMax - threshold) return 2; // higher than max-(max-min)*20%
   if (input > inMin + threshold) return 1; // higher then min+(max-min)*20%
-                                 return 0; // all values between
+                                 return 0; // all values below
   }
 
 /* =========================================================================
