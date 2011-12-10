@@ -42,11 +42,6 @@
    D10 for Y
    D11 for X
 
- Based on "AnalogInOutSerial" from Arduino IDE Examples by Tom Igoe
-
-   created 29 Dec. 2008
-   modified 30 Aug 2011
-
 3 Axes Sensore Response + mapped values from 0 to 10 as graphics
 
 Y: 000   = 348 *****
