@@ -265,13 +265,13 @@
 .def bTPBH        = r2                                  ; timer preset (high)
 .def xyzLast      = r3                                  ; last seen xyz-combined byte
 .def vecOrient    = r4                                  ; vector of orientation (0-5)
+.def xyzChanged   = r5                                  ; accumulator for orientation change state
 
 .def valNULL      = r16
 .def bTemp        = r17
 .def bInput       = r18
 .def bCurrentAxis = r19
 .def xyzNew       = r20                                 ; new calcualted xyz-combined byte
-.def xyzChanged   = r21                                 ; accumulator for orientation change state
 
 
      setup:
@@ -437,7 +437,7 @@
      ValidOrientation:
             mov     vecOrient,    bTemp                 ; 1   the last assumed logical orientation was correct
             mov     xyzLast,      xyzNew                ; 1   the new orientation becomes the current one
-            ldi     xyzChanged,   1                     ; 1   we remember: the orientation has changed
+            inc     xyzChanged                          ; 1   we remember: the orientation has changed
 
      ResetBuffers:
             clr     xyzNew                              ; 1   clear buffer for bit manipulaiton
