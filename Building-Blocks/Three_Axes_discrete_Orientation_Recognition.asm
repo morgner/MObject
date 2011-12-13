@@ -56,8 +56,8 @@
 ; The first start after ADCEN will do an initialisaton measurement before the first real measurement
 ;
 ; 5 ADATE (ADC Auto Trigger Enable)
-; When this bit is written to one, Auto Triggering of the ADC is enabled. The ADC will start a con- version on
-; a positive edge of the selected trigger signal. The trigger source is selected by setting the 
+; When this bit is written to one, Auto Triggering of the ADC is enabled. The ADC will start a conversion on a
+; positive edge of the selected trigger signal. The trigger source is selected by setting the
 ; ADC Trigger Select bits, ADTS in ADCSRB
 ;
 ; 4 ADIF (ADC Interrupt Flag)
@@ -173,9 +173,40 @@
 ; Reading ADCL blocks AHCH until ADCH is read too
 
 
-; ------------------------------------------------------------------------------------------------------------
+; ============================================================================================================
 ; MObject docu
+;
+; 1) Expectations
+;
+; 1.1) MC: Atmel168 or Atmael328 or compatible models
+;
+; 1.2) Accelerometer ADXL335 connectd like this:
+;
+; X-axis  Y-axis  Y-axis
+;   ADC7    ADC6    ADC5
 
+; 1.3) 3 LEDs connected to PORTB like this:
+;
+; LED-0  LED-1  LED-2
+;    B0     B1     B2
+
+; ------------------------------------------------------------------------------------------------------------
+; 2) Concept
+;
+; This is a part (building block) of an application embedded in an environment that requires a constant rate
+; of timer interrupts to build a sound wave using 256 sample per sound. This means, the part tested here has to
+; endure the same condition. Thats why the measurement is split into 3 cycles with status control to limit the
+; amount of machine cycle to deal with the analog measurements.
+;
+; Possibly, This measurement may walk alone and sound generation alone should be triggered by interrupts, but
+; such mechanics inflict many problems by design. Possibly I will test this anyway. If MObject is free to deal
+; with measurement of orientation, it may may do lot more things. Such as autocalibration, PWM control, multi-
+; channel output, serial communicaiton and so on.
+;
+; For the moment, the current solution is the one to go with...
+
+; ------------------------------------------------------------------------------------------------------------
+;
 ;    V = (X shl 4) OR (Y shl 2) OR Y
 ;
 ;   | X Y Z  high--low dec   hex  grmn  engl  inst  instrument
@@ -231,8 +262,20 @@
 .equ Y_MuxPreset  = AdcMuxConfig | Yaxis                ; Y + Multiplexer preset
 .equ Z_MuxPreset  = AdcMuxConfig | Zaxis                ; Z + Multiplexer preset
 
+; inMin     = 273 0x0111 Sensor minimal value (measured+manipulated)
+; inMax     = 432 0x01B0 Sensor maximal value (measured+manipulated)
+; dMinMax   = 159 0x009F Difference of min and max
+; bTreshold = 31  0x001F 20% of dMinMax
+; ignoren the lower 2 bits of the result, we go with 1/4 of the values shown
+.equ cbMin        = 0x44                                ; 273/4 minimum value
+.equ cbThresholdU = 0x20                                ; 128/4 upper threshold
+.equ cbThresholdL = 0x07                                ;  31/4 lower threshold
 
-; valid positions (value mix)
+; valid positions as x-y-z-value mix: (X shl 4) OR (Y shl 2) OR Y
+; input to 'mapped bits': 
+;   2 if input > max - threshold
+;   1 if input > min + threshold
+;   0 otherwise
 .equ xyzUPRT      = 0x16                                ; upright
 .equ xyzLEFT      = 0x11                                ; left side
 .equ xyzDOWN      = 0x14                                ; down side
@@ -240,19 +283,7 @@
 .equ xyzBACK      = 0x05                                ; to back
 .equ xyzFRNT      = 0x25                                ; to front
 
-; inMin     = 273 0x0111 Sensor minimal value (measured+manipulated)
-; inMax     = 432 0x01B0 Sensor maximal value (measured+manipulated)
-; dMinMax   = 159 0x009F Difference of min and max
-; bTreshold = 31  0x001F 20% of dMinMax
-; value mapping: 
-;   return 2 if input > max - threshold
-;   return 1 if input > min + threshold
-;   return 0 otherwise
-.equ cbMin        = 0x44                                ; 273/4 minimum value
-.equ cbThresholdU = 0x20                                ; 128/4 upper threshold
-.equ cbThresholdL = 0x07                                ;  31/4 lower threshold
-
-; valid orientations (logical mapped values)
+; logical orientations later used to select actions
 .equ vecUPRT      = 0                                   ; 1 upright
 .equ vecLEFT      = 1                                   ; 2 left side
 .equ vecDOWN      = 2                                   ; 3 down side
@@ -260,7 +291,7 @@
 .equ vecBACK      = 4                                   ; 5 to back
 .equ vecFRNT      = 5                                   ; 6 to front
 
-; xyz Comination = (mapped X shl 4) | (mapped Y shl 2) | mapped Z
+; other values
 .def bTPBL        = r1                                  ; timer preset (low)
 .def bTPBH        = r2                                  ; timer preset (high)
 .def xyzLast      = r3                                  ; last seen xyz-combined byte
@@ -268,11 +299,14 @@
 .def vecOrient    = r5                                  ; vector of orientation (0-5)
 .def xyzChanged   = r6                                  ; accumulator for orientation change state
 
-.def valNULL      = r16
-.def bTemp        = r17
-.def bInput       = r18
-.def bCurrentAxis = r19
+.def valNULL      = r16                                 ; simply a NULL
+.def bTemp        = r17                                 ; a short sighted temporary value
+.def bInput       = r18                                 ; see it as 'input accumulator'
+.def bCurrentAxis = r19                                 ; STATUS:the axis the current measuremnt is running on
 
+
+; ============================================================================================================
+; Staring of the programm
 
      setup:
             cli
@@ -308,9 +342,9 @@
             ldi     bTemp,        0x02                  ; set timer1 to overflow interrupt timer
             sts     TIMSK1,       bTemp                 ; 
 
-; define PORTC§ as ADC input
+; define PORTC as ADC input
 
-            out     DDRC,         valNULL                 ; set input pins
+            out     DDRC,         valNULL               ; set input pins
 
 ; define PORTB as output digital output
 
@@ -331,14 +365,15 @@
 
 ; set timer for first interrupt
 
-            sts     TCNT1L,       bTPBL                 ; 1 
-            sts     TCNT1H,       bTPBH                 ; 1 
+            sts     TCNT1L,       valNULL               ; 1 initial time setup. we are setting up, 
+            sts     TCNT1H,       valNULL               ; 1 the first periode does no matter
             sei
 
      forever:
             rjmp    forever
 
 ; ============================================================================================================
+; this is the time critical path
 
      interrupt_timer_1:
 
@@ -376,11 +411,11 @@
             cpi     bInput,       cbThresholdL          ; 1   are we over the lower threshold?
             brcs    MI2TR_return_0                      ; 1-2 no, we have to return 0
             ldi     bInput,       1                     ; 1   we have to return 1
-            rjmp    BuildOrientation                    ; 2   => 9
+            rjmp    BuildOrientation                    ; 2 
      MI2TR_return_0:
-            ldi     bInput,       0                     ; 1   => 8
+            ldi     bInput,       0                     ; 1 
             rjmp    AxisCombined                        ; 2   with 0, there is nothings to combine
-     BuildOrientation:
+     BuildOrientation:                                  ;     formula: xyNew = (X shl 4) OR (Y shl 2) OR Y
             cpi     bCurrentAxis, Zaxis                 ; 1   if this was Z
             breq    AxisCombine                         ; 1-2    we will not shift any bit
             cpi     bCurrentAxis, Yaxis                 ; 1   if this was not Y (it is X)
@@ -391,12 +426,10 @@
      ShiftY:
             lsl     bInput                              ; 1   we have to shift Y axis result 2 bits o the left
             lsl     bInput                              ; 1
-
-; combine read value into xyzNew for laer use
-
      AxisCombine:
             or      xyzNew,       bInput                ; 1   combine the last result to 'measured vector'
 
+; new mapped/normalized bits in place inside xyzNew
      AxisCombined:
             dec     bCurrentAxis                        ; 1   7, 6, 5, but not 4 = 111, 110, 101, but not 100
             cpi     bCurrentAxis, Naxis                 ; 1   if we reached NO-AXIS we have completed a 3axes cycle
