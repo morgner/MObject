@@ -367,7 +367,7 @@
 
             sts     TCNT1L,       valNULL               ; 1 initial time setup. we are setting up, 
             sts     TCNT1H,       valNULL               ; 1 the first periode does no matter
-            sei
+            sei                                         ; now we are ready to receive interrupts
 
      forever:
             rjmp    forever
