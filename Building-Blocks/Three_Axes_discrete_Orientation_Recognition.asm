@@ -216,6 +216,7 @@
 .equ Xaxis  = (1 << MUX2) | (1 << MUX1) | (1 << MUX0)   ; X => ADC7
 .equ Yaxis  = (1 << MUX2) | (1 << MUX1) | (0 << MUX0)   ; Y => ADC6
 .equ Zaxis  = (1 << MUX2) | (0 << MUX1) | (1 << MUX0)   ; Z => ADC5
+.equ Naxis  = (1 << MUX2) | (0 << MUX1) | (0 << MUX0)   ; NO AXIS - Cycle Terminator
 
 .equ AdcPrescale  = (1 << ADPS2)                        ; ADC prescaler to 16 => 1MHz on 16MHz Atmega
                                                         ; implies: | (0 << ADPS1) | (0 << ADPS0)
@@ -350,59 +351,59 @@
 
 ; check is measurement is finished
 
-            lds     bInput,       ADCSRA                ; 2   Gather Axis Position And Select Next Axis?
-            sbrc    bInput,       ADSC                  ; 1-3 if ADSC in ADCSRA is ON, measurement is done
+            lds     bTemp,        ADCSRA                ; 2   Gather Axis Position And Select Next Axis?
+            sbrc    bTemp,        ADSC                  ; 1-3 if ADSC in ADCSRA is ON, measurement is done
             rjmp    NoAdcRead                           ; 2   Measuremnet not yet finished
 
 ; yes it was, so we start processing the result
 
-            lds     bTemp,        ADCH                  ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
+            lds     bInput,       ADCH                  ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
 
 ;           sbi     ADCSRA,       ADIF                  ; 1   only on Atmega8 !
-            ori     bInput,       1 << ADIF             ; 1   we have to clear ADIF to proceed with ADCing
-            sts     ADCSRA,       bInput                ; 2   
+            ori     bTemp,        1 << ADIF             ; 1   we have to clear ADIF to proceed with ADCing
+            sts     ADCSRA,       bTemp                 ; 2   
 
 ; map input to table range 0, 1 or 2
 
      MI2TR:
-            subi    bTemp,        cbMin                 ; 1   input - min
+            subi    bInput,       cbMin                 ; 1   input - min to normalize input
 
-            cpi     bTemp,        cbThresholdU          ; 1
-            brcs    MI2TR_test1                         ; 1-2 possibly, we have to return 1 ?
-            ldi     bTemp,        2                     ; 1   we have to return 2
-            rjmp    BuildOrientation                    ; 2   => 6
-     MI2TR_test1:
-            cpi     bTemp,        cbThresholdL          ; 1
-            brcs    MI2TR_ret0                          ; 1-2 we have to return 0
-            ldi     bTemp,        1                     ; 1   we have to return 1
+            cpi     bInput,       cbThresholdU          ; 1   are we over the upper threshold?
+            brcs    MI2TR_test_for_1                    ; 1-2 no, possibly, we have to return 1
+            ldi     bInput,       2                     ; 1   we have to return 2
+            rjmp    BuildOrientation                    ; 2
+     MI2TR_test_for_1:
+            cpi     bInput,       cbThresholdL          ; 1   are we over the lower threshold?
+            brcs    MI2TR_return_0                      ; 1-2 no, we have to return 0
+            ldi     bInput,       1                     ; 1   we have to return 1
             rjmp    BuildOrientation                    ; 2   => 9
-     MI2TR_ret0:
-            ldi     bTemp,        0                     ; 1   => 8
-            rjmp    AxisCombined                        ; 2   nothings to combine
+     MI2TR_return_0:
+            ldi     bInput,       0                     ; 1   => 8
+            rjmp    AxisCombined                        ; 2   with 0, there is nothings to combine
      BuildOrientation:
             cpi     bCurrentAxis, Zaxis                 ; 1   if this was Z
-            breq    AxisCombine                         ; 1-2   we will not shift any bits
-            cpi     bCurrentAxis, Yaxis                 ; 1-3 if this was not Y (it is X)
-            breq    ShiftY
-     ShiftX:                                            ;       dummy lable, yust for understanding the code
-            lsl     bTemp,                              ; 1     we have to shift the result 2 bits to the left
-            lsl     bTemp,                              ; 1
+            breq    AxisCombine                         ; 1-2    we will not shift any bit
+            cpi     bCurrentAxis, Yaxis                 ; 1   if this was not Y (it is X)
+            breq    ShiftY                              ; 1      we will only shift 2 bits to left
+     ShiftX:                                            ;     dummy lable, yust for understanding the code
+            lsl     bInput                              ; 1   we have to shift X axis result 4 bits to the left
+            lsl     bInput                              ; 1
      ShiftY:
-            lsl     bTemp,                              ; 1     than we have to shift it two bits more anyway
-            lsl     bTemp,                              ; 1
+            lsl     bInput                              ; 1   we have to shift Y axis result 2 bits o the left
+            lsl     bInput                              ; 1
 
 ; combine read value into xyzNew for laer use
 
      AxisCombine:
-            or      xyzNew,       bTemp
+            or      xyzNew,       bInput                ; 1   combine the last result to 'measured vector'
 
      AxisCombined:
-            dec     bCurrentAxis                        ; 1   ADC7,6,5,not 4 = 111, 110, 101, not 100
-            cpi     bCurrentAxis, 0x04
-            breq    CyclusComplete
-            brne    AxisSelected                        ; 1-2 fine with us if right 2 bits are no NULL
+            dec     bCurrentAxis                        ; 1   7, 6, 5, but not 4 = 111, 110, 101, but not 100
+            cpi     bCurrentAxis, Naxis                 ; 1   if we reached NO-AXIS we have completed a 3axes cycle
+            breq    CyclusComplete                      ; 1-2   so we have to recognize what we are dealing with
+            brne    AxisSelected                        ; 1-2   otherwise, we simple measure the next axis
      CyclusComplete:
-            ori     bCurrentAxis, 0x07                  ; 1   otherwise reset to axis X (or in bits 00000011)
+            ori     bCurrentAxis, Xaxis                 ; 1   at first, after we finished this, we start with X axis
 
 ; all three axis were read, now we have to deal with the result
 
@@ -410,13 +411,15 @@
             breq    ResetBuffers                        ; 1-2 no - so we clean up
 
 ; here we found out, that the orientation had changed, but we don't know if the new orientation is valid
+; we only accept a change of orientation if the new orientation is valid, so we have to filter for the result
+; for validity.
 
-            ldi     bTemp,        vecUPRT               ; 1   fitlering the valid orientations while preloading
-            cpi     xyzNew,       xyzUPRT               ; 1   potential logical vector results to an accumulator
-            breq    ValidOrientation                    ; 1-2
-            ldi     bTemp,        vecLEFT               ; 1
-            cpi     xyzNew,       xyzLEFT               ; 1
-            breq    ValidOrientation                    ; 1-2
+            ldi     bTemp,        vecUPRT               ; 1   if this is the new postion, we are UPRT
+            cpi     xyzNew,       xyzUPRT               ; 1   is it the new position?
+            breq    ValidOrientation                    ; 1-2   yes, so we accept it
+            ldi     bTemp,        vecLEFT               ; 1   ...
+            cpi     xyzNew,       xyzLEFT               ; 1   ...
+            breq    ValidOrientation                    ; 1-2 ...
             ldi     bTemp,        vecDOWN               ; 1
             cpi     xyzNew,       xyzDOWN               ; 1
             breq    ValidOrientation                    ; 1-2
@@ -430,36 +433,37 @@
             cpi     xyzNew,       xyzFRNT               ; 1
             breq    ValidOrientation                    ; 1-2
 
-            rjmp    ResetBuffers                        ; 2   the orientation ist not valid, we irgnoe it
+            rjmp    ResetBuffers                        ; 2   the orientation is not valid, we irgnoe it
      ValidOrientation:
-            mov     vecOrient,    bTemp                 ; 1   the assumed logical orientation was correct
+            mov     vecOrient,    bTemp                 ; 1   the last assumed logical orientation was correct
             mov     xyzLast,      xyzNew                ; 1   the new orientation becomes the current one
-            ldi     xyzChanged,   1                     ; 1   we remember: the orientation was changed
+            ldi     xyzChanged,   1                     ; 1   we remember: the orientation has changed
 
      ResetBuffers:
             clr     xyzNew                              ; 1   clear buffer for bit manipulaiton
 
-
 ; next axis for measurement ist set, now we start the next measurement
 
      AxisSelected:
-            ldi     bTemp,        AdcMuxConfig
-            or      bTemp,        bCurrentAxis
-            sts     ADMUX,        bTemp                 ; 1   we choose the next axis
+            ldi     bTemp,        AdcMuxConfig          ; 1   initializing measurement for the nex axis
+            or      bTemp,        bCurrentAxis          ; 1   this is the axis
+            sts     ADMUX,        bTemp                 ; 1   MUX is now informed where and how to measure
 
-;           sbi     ADCSRA,       ADSC                  ; 1   Start Measurement Now
-            lds     bTemp,        ADCSRA                ; 2   3 lines instead of SBI
-            ori     bTemp,        1 << ADSC             ; 1
+;           sbi     ADCSRA,       ADSC                  ; 1   Start Measurement Now (on ATMEGA8)
+            lds     bTemp,        ADCSRA                ; 2   we are on Atmega 328, more steps to do
+            ori     bTemp,        1 << ADSC             ; 1   add the start flag to the ADCSRA value
             sts     ADCSRA,       bTemp                 ; 2   Start Measurement Now
 
             tst     xyzChanged                          ; 1   were orientation changed?
-            breq    NoOutput
+            breq    NoOutput                            ; 1-2 if not, we also will not change anything
+
+; this is a possible point to change something regarding to the change of orientation
 
             clr     xyzChanged                          ; 1  ok, orientation WAS changed
 
      NoOutput:
 
      NoAdcRead:
-;           make music
+;           make music / prepair next sample
 
             reti
