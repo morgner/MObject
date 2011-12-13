@@ -264,14 +264,14 @@
 .def bTPBL        = r1                                  ; timer preset (low)
 .def bTPBH        = r2                                  ; timer preset (high)
 .def xyzLast      = r3                                  ; last seen xyz-combined byte
-.def vecOrient    = r4                                  ; vector of orientation (0-5)
-.def xyzChanged   = r5                                  ; accumulator for orientation change state
+.def xyzNew       = r4                                  ; new calcualted xyz-combined byte
+.def vecOrient    = r5                                  ; vector of orientation (0-5)
+.def xyzChanged   = r6                                  ; accumulator for orientation change state
 
 .def valNULL      = r16
 .def bTemp        = r17
 .def bInput       = r18
 .def bCurrentAxis = r19
-.def xyzNew       = r20                                 ; new calcualted xyz-combined byte
 
 
      setup:
@@ -414,23 +414,25 @@
 ; we only accept a change of orientation if the new orientation is valid, so we have to filter for the result
 ; for validity.
 
+            mov     bInput,       xyzNew                ; 1   cpi does not work with LOW REGISTERS
+
             ldi     bTemp,        vecUPRT               ; 1   if this is the new postion, we are UPRT
-            cpi     xyzNew,       xyzUPRT               ; 1   is it the new position?
+            cpi     bInput,       xyzUPRT               ; 1   is it the new position?
             breq    ValidOrientation                    ; 1-2   yes, so we accept it
             ldi     bTemp,        vecLEFT               ; 1   ...
-            cpi     xyzNew,       xyzLEFT               ; 1   ...
+            cpi     bInput,       xyzLEFT               ; 1   ...
             breq    ValidOrientation                    ; 1-2 ...
             ldi     bTemp,        vecDOWN               ; 1
-            cpi     xyzNew,       xyzDOWN               ; 1
+            cpi     bInput,       xyzDOWN               ; 1
             breq    ValidOrientation                    ; 1-2
             ldi     bTemp,        vecRGHT               ; 1
-            cpi     xyzNew,       xyzRGHT               ; 1
+            cpi     bInput,       xyzRGHT               ; 1
             breq    ValidOrientation                    ; 1-2
             ldi     bTemp,        vecBACK               ; 1
-            cpi     xyzNew,       xyzBACK               ; 1
+            cpi     bInput,       xyzBACK               ; 1
             breq    ValidOrientation                    ; 1-2
             ldi     bTemp,        vecFRNT               ; 1
-            cpi     xyzNew,       xyzFRNT               ; 1
+            cpi     bInput,       xyzFRNT               ; 1
             breq    ValidOrientation                    ; 1-2
 
             rjmp    ResetBuffers                        ; 2   the orientation is not valid, we irgnoe it
