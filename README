@@ -8,4 +8,4 @@ There are different sensors - currently a 3 axes accelerometer - and different
 output devices - currently 5 LEDs and one digital-to-analog converter - to do
 the experiments and feasibility studies.
 
-Currently te LEDs are used as 'debugging display'
+Currently the LEDs are used as 'debugging display'
