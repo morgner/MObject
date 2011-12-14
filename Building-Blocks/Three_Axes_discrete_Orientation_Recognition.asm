@@ -261,7 +261,7 @@
 ; inMin     = 273 0x0111 Sensor minimal value (measured+manipulated)
 ; inMax     = 432 0x01B0 Sensor maximal value (measured+manipulated)
 ; dMinMax   = 159 0x009F Difference of min and max
-; bTreshold = 31  0x001F 20% of dMinMax
+; bTreshold =  31 0x001F 20% of dMinMax
 ; ignoren the lower 2 bits of the result, we go with 1/4 of the values shown
 .equ cbMin        = 0x44                                ; 273/4 minimum value
 .equ cbThresholdU = 0x21                                ; 128/4 upper threshold
@@ -359,7 +359,7 @@
             sts     ADMUX,        bTemp                 ; We start cycle with X axis; Multiplexer to X axis
 
             lds     bTemp,        ADCSRA                ; 3 lines instead of SBI
-            ori     bTemp,        ADSC | ADIF           ; ensure ADIF is cleard in each case
+            ori     bTemp,        1 << ADSC | 1 << ADIF ; ensure ADIF is cleard in each case
             sts     ADCSRA,       bTemp                 ; Start Measurement Now
 
 ; set timer for first interrupt
