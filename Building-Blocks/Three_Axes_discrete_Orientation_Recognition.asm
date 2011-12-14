@@ -196,7 +196,7 @@
 ; This is a part (building block) of an application embedded in an environment that requires a constant rate
 ; of timer interrupts to build a sound wave using 256 sample per sound. This means, the part tested here has to
 ; endure the same condition. Thats why the measurement is split into 3 cycles with status control to limit the
-; amount of machine cycle to deal with the analog measurements.
+; amount of machine cycle to deal with the analog measurements for all 3 axes and postprocessing.
 ;
 ; Possibly, This measurement may walk alone and sound generation alone should be triggered by interrupts, but
 ; such mechanics inflict many problems by design. Possibly I will test this anyway. If MObject is free to deal
@@ -268,8 +268,8 @@
 ; bTreshold = 31  0x001F 20% of dMinMax
 ; ignoren the lower 2 bits of the result, we go with 1/4 of the values shown
 .equ cbMin        = 0x44                                ; 273/4 minimum value
-.equ cbThresholdU = 0x20                                ; 128/4 upper threshold
-.equ cbThresholdL = 0x07                                ;  31/4 lower threshold
+.equ cbThresholdU = 0x21                                ; 128/4 upper threshold
+.equ cbThresholdL = 0x06                                ;  31/4 lower threshold
 
 ; valid positions as x-y-z-value mix: (X shl 4) OR (Y shl 2) OR Y
 ; input to 'mapped bits': 
@@ -313,12 +313,15 @@
 
 ; initialize named variables
 
-            clr     valNULL
+            clr     valNULL                             ; we don't wish to get interruptet - while setting up
 
-            ldi     bTemp,        vecUPRT
-            mov     vecOrient,    bTemp
+            ldi     bTemp,        vecUPRT               ; the asumed position at startup is upright
+            mov     vecOrient,    bTemp                 ; if wrong - it will be corrected in ms
 
-            ldi     bCurrentAxis, Xaxis
+            ldi     bTemp,        xyzUPRT               ; if we wish to prevent unneccesary action
+            mov     xyzLast,      bTemp                 ; we have to set the associated xyzLast value
+
+            ldi     bCurrentAxis, Xaxis                 ; at the first measurement, we test axis X
 
             ldi     bTemp,        TPBL                  ; timer preset (low)
             mov     bTPBL,        bTemp                 ; 
@@ -367,7 +370,7 @@
 
             sts     TCNT1L,       valNULL               ; 1 initial time setup. we are setting up, 
             sts     TCNT1H,       valNULL               ; 1 the first periode does no matter
-            sei                                         ; now we are ready to receive interrupts
+            sei                                         ; 1 now we are ready to receive interrupts
 
      forever:
             rjmp    forever
@@ -434,7 +437,7 @@
             dec     bCurrentAxis                        ; 1   7, 6, 5, but not 4 = 111, 110, 101, but not 100
             cpi     bCurrentAxis, Naxis                 ; 1   if we reached NO-AXIS we have completed a 3axes cycle
             breq    CyclusComplete                      ; 1-2   so we have to recognize what we are dealing with
-            brne    AxisSelected                        ; 1-2   otherwise, we simple measure the next axis
+            rjmp    AxisSelected                        ; 2     otherwise, we simply measure the next axis
      CyclusComplete:
             ori     bCurrentAxis, Xaxis                 ; 1   at first, after we finished this, we start with X axis
 
