@@ -257,10 +257,6 @@
 
 .equ AdcMuxConfig = (1 << REFS0) | (1 << ADLAR)         ; MUX configuration: REF=VCC, Left Aligned Result
                                                         ; implies:  | (0 << MUX3)
-; axis pedefinition for ADMUX
-.equ X_MuxPreset  = AdcMuxConfig | Xaxis                ; X + Multiplexer preset
-.equ Y_MuxPreset  = AdcMuxConfig | Yaxis                ; Y + Multiplexer preset
-.equ Z_MuxPreset  = AdcMuxConfig | Zaxis                ; Z + Multiplexer preset
 
 ; inMin     = 273 0x0111 Sensor minimal value (measured+manipulated)
 ; inMax     = 432 0x01B0 Sensor maximal value (measured+manipulated)
