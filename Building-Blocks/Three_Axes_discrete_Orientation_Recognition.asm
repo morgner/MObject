@@ -255,7 +255,7 @@
 .equ AdcConfig    = (1 << ADEN)                         ; ADC config
                                                         ; implies: | (0 << ADATE) | (0 << ADIF)  | (0 << ADIE)
 
-.equ AdcMuxConfig = (1 << REFS0) | (1 << ADLAR)         ; MUX configuration: REF=VCC, Result Left Alignment
+.equ AdcMuxConfig = (1 << REFS0) | (1 << ADLAR)         ; MUX configuration: REF=VCC, Left Aligned Result
                                                         ; implies:  | (0 << MUX3)
 ; axis pedefinition for ADMUX
 .equ X_MuxPreset  = AdcMuxConfig | Xaxis                ; X + Multiplexer preset
