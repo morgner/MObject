@@ -1,4 +1,4 @@
-; MObject.asm
+; Three_Axes_discrete_Orientation_Recognition.asm
 ; -------------------------------------------------------------------------
 ; begin                 : 2011-12-10
 ; copyright             : Copyright (C) 2011 by Manfred Morgner
