@@ -337,7 +337,6 @@
             sts     TCCR1A,       bTemp                 ; 
             ldi     bTemp,        0x01                  ; set timer1 prescaler to 1
             sts     TCCR1B,       bTemp                 ; 
-
             ldi     bTemp,        0x02                  ; set timer1 to overflow interrupt timer
             sts     TIMSK1,       bTemp                 ; 
 
