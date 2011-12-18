@@ -261,9 +261,10 @@
      forever:
 
      Yield_01:                                          ; copy current sound to RAM if orientation changed
-            cpse    pSample,      valNULL               ; 1-3 we only change the sound if it will not click
             tst     xyzChanged                          ; 1   if orientation has not changed
             breq    Yield_02                            ; 1-2   we do nothings about it
+            tst     pSample                             ; 1   we only change the sound if it will not click
+            brne    Yield_02                            ; 1-2   otherwise we try later
             cli                                         ; 1   no interrupts, we are changing the world
             ldi     ZL,           low (awSoundFlash*2)  ; 1   sound address in FLASH
             ldi     ZH,           high(awSoundFlash*2)  ; 1   
@@ -278,7 +279,11 @@
             clr     xyzChanged                          ; 1   ok, orientation WAS changed
 
     Yield_02:
-
+            sei
+            nop
+            nop
+            nop
+            nop
             rjmp    forever
 
 ; ============================================================================================================
@@ -293,7 +298,7 @@
 
 ; not to forget, we are in constante time frame, so we output the sample from the previous round
 
-;            lsr     bSample
+            lsr     bSample
             out     outSound,     bSample               ; 1   send sample to output
 
 ; until here, it was all about timing, but CLR will modify SREG!
