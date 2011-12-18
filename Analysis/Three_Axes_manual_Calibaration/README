@@ -2,7 +2,7 @@
 
 Used to find out the numerical limits given back from our 3 axis acceleromenter
 
-The code is written in 'Arduino' (as git it names) or C/C++. So it should be
+The code is written in 'Arduino' (as git it names it) or C/C++. So it should be
 easy to understand but in no way any ressource protective or protectiv in
 anything.
 
