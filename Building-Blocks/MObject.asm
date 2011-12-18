@@ -261,6 +261,7 @@
      forever:
 
      Yield_01:                                          ; copy current sound to RAM if orientation changed
+            cpse    pSample,      valNULL               ; 1-3 we only change the sound if it will not click
             tst     xyzChanged                          ; 1   if orientation has not changed
             breq    Yield_02                            ; 1-2   we do nothings about it
             cli                                         ; 1   no interrupts, we are changing the world
