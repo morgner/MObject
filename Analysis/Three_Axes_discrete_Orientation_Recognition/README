@@ -1,8 +1,9 @@
 ==Three_Axes_discrete_Orientation_Recognition==
 
-Demonstrates how to recognize discrete positions using an 3 axis acceleromenter
+Demonstrates how to recognize discrete positions using a 3 axis acceleromenter
 
-The code is in 'Arduino' or C/C++ so so easy to understand and in no way any
-ressource protective.
+The code is written in 'Arduino' or C/C++ so easy to understand and in no way
+any ressource protective or timing respecting.
 
-This C/C++ source is for analysis only!
+This C/C++ source is for analysis only. It will help thinking on how to do it
+the right way. In a way.

@@ -2,8 +2,9 @@
 
 Used to find out the numerical limits given back from our 3 axis acceleromenter
 
-The code is in 'Arduino' or C/C++ so so easy to understand and in no way any
-ressource protective.
+The code is written in 'Arduino' (as git it names it) or C/C++. So it should be
+easy to understand but in no way any ressource protective or protectiv in
+anything.
 
-This C/C++ source is for calibration only! We calibrate the pplication, not
-the senosre ;-)
+This C/C++ source is for calibration only!. We calibrate the application, not
+the sensore ;-)

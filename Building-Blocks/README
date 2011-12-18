@@ -6,9 +6,9 @@ All parts and program blocks here are designed to minimize footprints of any
 kind (registers, processing cycles, storage space, ...) and maximize
 performance.
 
-It is expeced to do multiple things at the same time. The file MObject.asm
-contains the complete code for MObject. All other files do and will contain
-specialised parts of MObject code.
+MObject is expected to do multiple things at the same time. The file
+MObject.asm contains the complete code for MObject. All other files contain
+or will contain specialised parts of MObject code.
 
 These parts are for demonstration and research.
 
