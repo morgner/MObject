@@ -136,7 +136,7 @@ void setup()
    Select response value 0, 1 or 2 for a given sensore value
 
    For the final product, inHigh and inLow has to be calibrated. The
-   accelerometer sensor used for thi development show mainly even
+   accelerometer sensor used for this development shows mainly even
    resonses for each axis. So we only need on pair of border values.
 
    ========================================================================= */
@@ -146,8 +146,8 @@ char ratio(int input)
   const int inMin = 273; // Sensor minimal value (measured+manipulated)
   const int inMax = 432; // Sensor maximal value (measured+manipulated)
   
-  // The sensor resonse is a sinus curve. We try to expand the middle part of
-  // curve to stabelize the output mapping. Instead of using 1/3 of the
+  // The sensor response is a sinus curve. We try to expand the middle part
+  // of the curve to stabelize output mapping. Instead of using 1/3 of the
   // difference, we interprete only 20% of the caps of the sinus curve to find
   // out with sector of rotation we are in. We need a mapping _like_ this:
   //
@@ -157,7 +157,8 @@ char ratio(int input)
   //
   // For more information about acceleromater response see:
   //
-  //   Accelerometer-Response.ods
+  //   Sensor_Responses/Accelerometer-Response.ods
+  //
   const char threshold = (inMax-inMin) / 5;
   if (input > inMax - threshold) return 2; // higher than max-(max-min)*20%
   if (input > inMin + threshold) return 1; // higher then min+(max-min)*20%
@@ -170,6 +171,8 @@ char ratio(int input)
    mapped to 3 states to PWM D/A output to set 3 LEDs to 'off' 'half on'
    and 'on'. Also it falshes one LED to signalize a change from one valid
    position to another one.
+   
+   There are 6 discrete valid positions:
 
    ========================================================================= */
 
@@ -209,7 +212,7 @@ void loop()
     default:
        bChanged = false;
     }
-  // we had a change from one valid position to another one
+  // we had a change from one valid position to another one => blink!
   if ( bChanged )
     {
     xyzLast = xyzVector;        // the new position becomes the old one
@@ -219,7 +222,9 @@ void loop()
     }
 
   // wait 10 milliseconds before the next loop for the analog-to-digital
-  // converter to settle after the last reading
+  // converter to settle after the last reading - unsure if we really
+  // need this. I found no documentation about this and proctical studies
+  // don't support this theory. But we are analysing, so no complaints here
   delay(10);
   } // end of main loop
 
