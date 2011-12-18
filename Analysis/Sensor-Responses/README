@@ -1,0 +1,14 @@
+==Sensore Resonses==
+
+Some sensores are no simple swtiches. If so, here is the folder to describe the
+relevant behavior.
+
+This is not a theoretical research study. We only analyse the sensor responses
+as far as we need it to fulfill out immediate requirements. For example:
+
+  We need to recognize a position of 23 degree leftside:
+
+  Then we turn the sensor 23° to the left side and measure the unfiltered
+  sensore response in unnamed units for further reference.
+
+  Pragmatically, not scientific!
