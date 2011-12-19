@@ -70,8 +70,12 @@
 
 
 ; Arduino Nano 3.0 shipped with 168 and (later) 328
-.DEVICE atmega328
+.DEVICE atmega8
 ;.DEVICE atmega168
+;.DEVICE atmega328
+
+
+
 
 ; ============================================================================================================
 ; DATA SEGMENT (RAM)
@@ -98,28 +102,31 @@
 ; ============================================================================================================
 ; Definition Section
 
-.equ ctlSound    = DDRD  ; port control register
-.equ outSound    = PORTD ; output PORT for DA converter (8bit sound sample output)
+.equ ctlInput     = DDRC  ; port control register
+.equ iopInput     = PORTC ; input PORT for digital input
+
+.equ ctlSound     = DDRD  ; port control register fpr sound output
+.equ iopSound     = PORTD ; output PORT for DA converter (8bit sound sample output)
 
 ; ------------------------------------------------------------------------------------------------------------
 ;  A4 = 440 Hz
 ; Interrupt Generator has to be adjusted to 256*'A5' = 112640 Hz => 142 cycles to do what's necessary
 ; 2 byte timing, here with value 0xFF72 (142) for 112640 Hz on 16MHz MC
-.equ    TPBH     = 0xff  ; timer preset (high)
-.equ    TPBL     = 0x7F  ; timer preset (low)
+.equ    TPBH      = 0xff  ; timer preset (high)
+.equ    TPBL      = 0x7F  ; timer preset (low)
 
 ; ------------------------------------------------------------------------------------------------------------
 ; for gavrasm (should be known by other assembler)
-;def X           = r26   ; X word
-;def XL          = r26   ; X low byte
-;def XH          = r27   ; X high byte
-.def Y           = r28   ; Y word
-.def YL          = r28   ; Y low byte
-.def pSample     = r28   ; alias to YL, will be initialised by sound-to-RAM copy procedure (YL)
-.def YH          = r29   ; Y high byte
-.def Z           = r30   ; Z word
-.def ZL          = r30   ; Z low byte
-.def ZH          = r31   ; Z high byte
+;def X            = r26   ; X word
+;def XL           = r26   ; X low byte
+;def XH           = r27   ; X high byte
+.def Y            = r28   ; Y word
+.def YL           = r28   ; Y low byte
+.def pSample      = r28   ; alias to YL, will be initialised by sound-to-RAM copy procedure (YL)
+.def YH           = r29   ; Y high byte
+.def Z            = r30   ; Z word
+.def ZL           = r30   ; Z low byte
+.def ZH           = r31   ; Z high byte
 
 ; ------------------------------------------------------------------------------------------------------------
 ; preconfiguration values for ADC
@@ -130,7 +137,13 @@
 .equ Naxis  = (1 << MUX2) | (0 << MUX1) | (0 << MUX0)                       ; NO AXIS - Cycle Terminator
 
 .equ AdcPrescale  = (1 << ADPS2) | (0 << ADPS1) | (0 << ADPS0)              ; Scale: 16 => 1MHz on 16MHz
+
+.ifdef ATmega8
+.equ AdcConfig    = (1 << ADEN)  |                (1 << ADIF) | (0 << ADIE) ; ADC Enable, Clear Interrupt Flag
+.else
 .equ AdcConfig    = (1 << ADEN)  | (0 << ADATE) | (1 << ADIF) | (0 << ADIE) ; ADC Enable, Clear Interrupt Flag
+.endif
+
 .equ AdcMuxConfig = (1 << REFS0) | (1 << ADLAR) | (0 << MUX3)               ; REF=VCC, Left Aligned Result
 
 ; inMin     = 273 0x0111 Sensor minimal value (measured+manipulated)
@@ -162,7 +175,9 @@
 .equ vecBACK      = 4                                   ; 5 to back
 .equ vecFRNT      = 5                                   ; 6 to front
 
-; other values
+.equ vecCHANGED   = 0x01                                ; flag, vector had changed
+
+; low register variables
 .def bTPBL        = r1                                  ; timer preset (low)
 .def bTPBH        = r2                                  ; timer preset (high)
 .def xyzLast      = r3                                  ; last seen xyz-combined byte
@@ -171,7 +186,9 @@
 .def xyzChanged   = r6                                  ; accumulator for orientation change state
 .def bCopyAccu    = r7                                  ; accumulator for copying bytes from FLASH to RAM
 .def bSample      = r8                                  ; value of curent sample in sound
+.def bSREG        = r9                                  ; we do no push if we are able to prevent it
 
+; high registers variables
 .def valNULL      = r16                                 ; simply a NULL
 .def bTemp        = r17                                 ; a short sighted temporary value
 .def bInput       = r18                                 ; see it as 'input accumulator'
@@ -186,16 +203,16 @@
 
 ; initialize named variables
 
-            clr     valNULL                             ; valNULL has to become NULL
-            clr     bSample                             ; no klick on startup
+            clr     valNULL                             ; 1   valNULL has to become NULL
+            clr     bSample                             ; 1   no klick on startup
 
-            ldi     bTemp,        vecUPRT               ; the asumed position at startup is upright
-            mov     vecOrient,    bTemp                 ; if wrong - it will be corrected in ms
+            ldi     bTemp,        vecUPRT               ; 1   the asumed position at startup is upright
+            mov     vecOrient,    bTemp                 ; 1   if wrong - it will be corrected in ms
 
-            ldi     bTemp,        xyzUPRT               ; if we wish to prevent unneccesary action
-            mov     xyzLast,      bTemp                 ; we have to set the associated xyzLast value
+            ldi     bTemp,        xyzUPRT               ; 1   if we wish to prevent unneccesary action
+            mov     xyzLast,      bTemp                 ; 1   we have to set the associated xyzLast value
 
-            ldi     bTemp,        0x01                  ; 1   we pretent to had a change of orientaiton (which we
+            ldi     bTemp,        vecCHANGED            ; 1   we pretent to had a change of orientaiton (which we
             mov     xyzChanged,   bTemp                 ; 1   had indeed) to ensure any side processing will execute
 
             ldi     bCurrentAxis, Xaxis                 ; 1   at the first measurement, we test axis X
@@ -214,18 +231,27 @@
 
 ; prepair timer interrupt
 
-            ldi     bTemp,        0x00                  ; 1   set time1 to "no waveform generation & no compare match interrupt"
-            sts     TCCR1A,       bTemp                 ; 2   
-            ldi     bTemp,        0x01                  ; 1   set timer1 prescaler to 1
-            sts     TCCR1B,       bTemp                 ; 2   
-            ldi     bTemp,        0x02                  ; 1   set timer1 to overflow interrupt timer
+.ifdef ATmega8
+            out     TCCR1A,       valNULL               ; 1
+            ldi     bTemp,        1 << CS10             ; 1   Clock Select Bit 1: set timer1 prescaler to 1
+            out     TCCR1B,       bTemp                 ; 1
+            ldi     bTemp,        1 << TOIE1            ; 1   Timer/Counter1 Overflow Interrupt Enable
+            out     TIMSK,        bTemp                 ; 1
+.else
+            sts     TCCR1A,       valNULL               ; 2
+            ldi     bTemp,        1 << CS10             ; 1   Clock Select Bit 1: set timer1 prescaler to 1
+            sts     TCCR1B,       bTemp                 ; 2
+            ldi     bTemp,        1 << TOIE1            ; 1   Timer/Counter1 Overflow Interrupt Enable
             sts     TIMSK1,       bTemp                 ; 2
+.endif
 
 ; define PORTC as ADC input
 
-            out     DDRC,         valNULL               ; 1   set all pins to input mode
-
             ldi     bTemp,        0xFF                  ; 1   all pins
+
+            out     ctlInput,     valNULL               ; 1   all pins to input mode
+            out     iopInput,     bTemp                 ; 1   all pins to pullup mode
+
             out     ctlSound,     bTemp                 ; 1   set all pins to output mode for sound
 
 ; initialize destination/source address for RAM-sound starting by YL=0
@@ -239,23 +265,43 @@
             ldi     bTemp,        0xFF                  ; 1   all pins
             out     DDRB,         bTemp                 ; 1   set output pins for PORTB
 
-            sts     DIDR0,        valNULL               ; 2   no digital buffer for ADC input
-            sts     ADCSRB,       valNULL               ; 2   default configuration
+.ifdef ATmega8
+;           out     DIDR0,        valNULL                 ; 0   not at ATmega8?
+;           out     ADCSRB,       valNULL                 ; 0   not at ATmega8?
+
             ldi     bTemp,        AdcConfig | AdcPrescale ; 1
-            sts     ADCSRA,       bTemp                 ; 2   out specific configutation
+            out     ADCSRA,       bTemp                   ; 1   out specific configutation
 
-            ldi     bTemp,        AdcMuxConfig | Xaxis  ; 1
-            sts     ADMUX,        bTemp                 ; 2   We start cycle with X axis; Multiplexer to X axis
+            ldi     bTemp,        AdcMuxConfig | Xaxis    ; 1
+            out     ADMUX,        bTemp                   ; 2   We start cycle with X axis; Multiplexer to X axis
 
-            lds     bTemp,        ADCSRA                ; 2   3 lines instead of SBI
-            ori     bTemp,        1 << ADSC | 1 << ADIF ; 1   start first measurement and ensure ADIF is cleard
-            sts     ADCSRA,       bTemp                 ; 2   Start Measurement Now
+            sbi     ADCSRA,       ADIF                    ; 1   start first measurement and ensure ADIF is cleard
+            sbi     ADCSRA,       ADSC                    ; 1   Start Measurement Now
 
 ; set timer for first interrupt
 
-            sts     TCNT1L,       valNULL               ; 1 initial time setup. we are setting up, 
-            sts     TCNT1H,       valNULL               ; 1 the first periode does no matter
-            sei                                         ; 1 now we are ready to receive interrupts
+            out     TCNT1L,       valNULL                 ; 1 initial time setup. we are setting up, 
+            out     TCNT1H,       valNULL                 ; 1 the first periode does no matter
+.else
+            sts     DIDR0,        valNULL                 ; 2   no digital buffer for ADC input
+            sts     ADCSRB,       valNULL                 ; 2   default configuration
+
+            ldi     bTemp,        AdcConfig | AdcPrescale ; 1
+            sts     ADCSRA,       bTemp                   ; 2   out specific configutation
+
+            ldi     bTemp,        AdcMuxConfig | Xaxis    ; 1
+            sts     ADMUX,        bTemp                   ; 2   We start cycle with X axis; Multiplexer to X axis
+
+            lds     bTemp,        ADCSRA                  ; 2   3 lines instead of SBI
+            ori     bTemp,        1 << ADSC | 1 << ADIF   ; 1   start first measurement and ensure ADIF is cleard
+            sts     ADCSRA,       bTemp                   ; 2   Start Measurement Now
+
+; set timer for first interrupt
+
+            sts     TCNT1L,       valNULL                 ; 1 initial time setup. we are setting up, 
+            sts     TCNT1H,       valNULL                 ; 1 the first periode does no matter
+.endif
+            sei                                           ; 1 now we are ready to receive interrupts
 
 ; this is a kind of multi tasking window, we do something usefull an become interrupted if the timer calls
      forever:
@@ -280,10 +326,6 @@
 
     Yield_02:
             sei
-            nop
-            nop
-            nop
-            nop
             rjmp    forever
 
 ; ============================================================================================================
@@ -293,18 +335,22 @@
 
 ; set timer for next interrupt
 
-            sts     TCNT1L,       bTPBL                 ; 1 We have to set timer values each time
-            sts     TCNT1H,       bTPBH                 ; 1 
+.ifdef ATmega8
+            out     TCNT1L,       bTPBL                 ; 1 Timer/Counter1
+            out     TCNT1H,       bTPBH                 ; 1 we have to set timer values each time
+.else
+            sts     TCNT1L,       bTPBL                 ; 2 Timer/Counter1
+            sts     TCNT1H,       bTPBH                 ; 2 we have to set timer values each time
+.endif
 
 ; not to forget, we are in constante time frame, so we output the sample from the previous round
 
             lsr     bSample
-            out     outSound,     bSample               ; 1   send sample to output
+            out     iopSound,     bSample               ; 1   send sample to output
 
 ; until here, it was all about timing, but CLR will modify SREG!
 
-            in      bTemp,        SREG                  ; 1   we have to save SREG for after
-            push    bTemp                               ; 2   not cheap, but necessary!
+            in      bSREG,        SREG                  ; 1   we have to save SREG for after
 
             clr     bSample                             ; 1   we had it played, so we clear it off
 
@@ -312,8 +358,8 @@
 
 ; check is measurement is finished
 
-            cpse    xyzChanged,   valNULL               ; 1-3 do we have an unhandled orientation change pending?
-            rjmp    NoAdcRead                           ; 2   orientation change not yet dealed with
+            cpse    xyzChanged,   valNULL               ; 1-3 if there is a unhandled change of orientation pending
+            rjmp    NoAdcRead                           ; 2     we do nothings about any new orientation
 
             lds     bTemp,        ADCSRA                ; 2   Gather Axis Position And Select Next Axis?
             sbrc    bTemp,        ADSC                  ; 1-3 if ADSC in ADCSRA is ON, measurement is done
@@ -322,10 +368,12 @@
 ; yes it was, so we start processing the result
 
             lds     bInput,       ADCH                  ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
-
-;           sbi     ADCSRA,       ADIF                  ; 1   only on Atmega8 !
+.ifdef ATmega
+            sbi     ADCSRA,       ADIF                  ; 1   only on Atmega8 !
+.else
             ori     bTemp,        1 << ADIF             ; 1   we have to clear ADIF to proceed with ADCing
             sts     ADCSRA,       bTemp                 ; 2   
+.endif
 
 ; map input to table range 0, 1 or 2
 
@@ -411,13 +459,15 @@
      AxisSelected:
             ldi     bTemp,        AdcMuxConfig          ; 1   initializing measurement for the nex axis
             or      bTemp,        bCurrentAxis          ; 1   this is the axis
-            sts     ADMUX,        bTemp                 ; 1   MUX is now informed where and how to measure
-
-;           sbi     ADCSRA,       ADSC                  ; 1   Start Measurement Now (on ATMEGA8)
+.ifdef ATmega8
+            out     ADMUX,        bTemp                 ; 1   MUX is now informed where and how to measure
+            sbi     ADCSRA,       ADSC                  ; 1   Start Measurement Now (on ATMEGA8)
+.else
+            sts     ADMUX,        bTemp                 ; 2   MUX is now informed where and how to measure
             lds     bTemp,        ADCSRA                ; 2   we are on Atmega 328, more steps to do
             ori     bTemp,        1 << ADSC             ; 1   add the start flag to the ADCSRA value
             sts     ADCSRA,       bTemp                 ; 2   Start Measurement Now
-
+.endif
             tst     xyzChanged                          ; 1   were orientation changed?
             breq    NoOutput                            ; 1-2 if not, we also will not change anything
 
@@ -435,8 +485,7 @@
 
      interrupt_timer_1_end:
 
-            pop     bTemp                               ; 2   restoring SREG for the interrupted process
-            out     SREG,         bTemp                 ; 1   now we are clean again
+            out     SREG,         bSREG                 ; 1   now we are clean again
 
             reti
 
