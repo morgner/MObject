@@ -93,40 +93,40 @@
 .cseg
 
 .org 0x0000
-     rjmp    setup              ; register 'setup' as Programm Start Routine
+     rjmp    setup                ; register 'setup' as Programm Start Routine
 .org OVF1addr
-     rjmp    interrupt_timer_1  ; register 'interrupt_timer_1' as Timer1 Overflow Routine
+     rjmp    interrupt_timer_1    ; register 'interrupt_timer_1' as Timer1 Overflow Routine
 ;org ADCCaddr
-;    rjmp    interrupt_adcmr_1  ; register 'interrupt_adcmr_1' as ADC measurement ready
+;    rjmp    interrupt_adcmr_1    ; register 'interrupt_adcmr_1' as ADC measurement ready
 
 ; ============================================================================================================
 ; Definition Section
 
-.equ ctlInput     = DDRC  ; port control register
-.equ iopInput     = PORTC ; input PORT for digital input
+.equ ctlInput     = DDRC          ; port control register
+.equ iopInput     = PORTC         ; input PORT for digital input
 
-.equ ctlSound     = DDRD  ; port control register fpr sound output
-.equ iopSound     = PORTD ; output PORT for DA converter (8bit sound sample output)
+.equ ctlSound     = DDRD          ; port control register fpr sound output
+.equ iopSound     = PORTD         ; output PORT for DA converter (8bit sound sample output)
 
 ; ------------------------------------------------------------------------------------------------------------
 ;  A4 = 440 Hz
 ; Interrupt Generator has to be adjusted to 256*'A5' = 112640 Hz => 142 cycles to do what's necessary
 ; 2 byte timing, here with value 0xFF72 (142) for 112640 Hz on 16MHz MC
-.equ    TPBH      = 0xff  ; timer preset (high)
-.equ    TPBL      = 0x7F  ; timer preset (low)
+.equ    TPBH      = 0xff          ; timer preset (high)
+.equ    TPBL      = 0x7F          ; timer preset (low)
 
 ; ------------------------------------------------------------------------------------------------------------
 ; for gavrasm (should be known by other assembler)
-;def X            = r26   ; X word
-;def XL           = r26   ; X low byte
-;def XH           = r27   ; X high byte
-.def Y            = r28   ; Y word
-.def YL           = r28   ; Y low byte
-.def pSample      = r28   ; alias to YL, will be initialised by sound-to-RAM copy procedure (YL)
-.def YH           = r29   ; Y high byte
-.def Z            = r30   ; Z word
-.def ZL           = r30   ; Z low byte
-.def ZH           = r31   ; Z high byte
+;def X            = r26           ; X word
+;def XL           = r26           ; X low byte
+;def XH           = r27           ; X high byte
+.def Y            = r28           ; Y word
+.def YL           = r28           ; Y low byte
+.def pSample      = r28           ; alias to YL, will be initialised by sound-to-RAM copy procedure (YL)
+.def YH           = r29           ; Y high byte
+.def Z            = r30           ; Z word
+.def ZL           = r30           ; Z low byte
+.def ZH           = r31           ; Z high byte
 
 ; ------------------------------------------------------------------------------------------------------------
 ; preconfiguration values for ADC
@@ -146,124 +146,125 @@
 
 .equ AdcMuxConfig = (1 << REFS0) | (1 << ADLAR) | (0 << MUX3)               ; REF=VCC, Left Aligned Result
 
+
 ; inMin     = 273 0x0111 Sensor minimal value (measured+manipulated)
 ; inMax     = 432 0x01B0 Sensor maximal value (measured+manipulated)
 ; dMinMax   = 159 0x009F Difference of min and max
 ; bTreshold =  31 0x001F 20% of dMinMax
 ; ignoren the lower 2 bits of the result, we go with 1/4 of the values shown
-.equ cbMin        = 0x44                                ; 273/4 minimum value
-.equ cbThresholdU = 0x20                                ; 128/4 upper threshold
-.equ cbThresholdL = 0x07                                ;  31/4 lower threshold
+.equ cbMin        = 0x44          ; 273/4 minimum value
+.equ cbThresholdU = 0x20          ; 128/4 upper threshold
+.equ cbThresholdL = 0x07          ;  31/4 lower threshold
 
 ; valid positions as x-y-z-value mix: (X shl 4) OR (Y shl 2) OR Y
 ; measured input to 'mapped bits': 
 ;   2 if input > max - threshold
 ;   1 if input > min + threshold
 ;   0 otherwise
-.equ xyzUPRT      = 0x16                                ; upright
-.equ xyzLEFT      = 0x11                                ; left side
-.equ xyzDOWN      = 0x14                                ; down side
-.equ xyzRGHT      = 0x19                                ; right side
-.equ xyzBACK      = 0x05                                ; to back
-.equ xyzFRNT      = 0x25                                ; to front
+.equ xyzUPRT      = 0x16          ; upright
+.equ xyzLEFT      = 0x11          ; left side
+.equ xyzDOWN      = 0x14          ; down side
+.equ xyzRGHT      = 0x19          ; right side
+.equ xyzBACK      = 0x05          ; to back
+.equ xyzFRNT      = 0x25          ; to front
 
 ; logical orientations later used to select actions
-.equ vecUPRT      = 0                                   ; 1 upright
-.equ vecLEFT      = 1                                   ; 2 left side
-.equ vecDOWN      = 2                                   ; 3 down side
-.equ vecRGHT      = 3                                   ; 4 right side
-.equ vecBACK      = 4                                   ; 5 to back
-.equ vecFRNT      = 5                                   ; 6 to front
+.equ vecUPRT      = 0             ; 1 upright
+.equ vecLEFT      = 1             ; 2 left side
+.equ vecDOWN      = 2             ; 3 down side
+.equ vecRGHT      = 3             ; 4 right side
+.equ vecBACK      = 4             ; 5 to back
+.equ vecFRNT      = 5             ; 6 to front
 
-.equ vecCHANGED   = 0x01                                ; flag, vector had changed
+.equ vecCHANGED   = 0x01          ; flag, vector had changed
 
 ; low register variables
-.def bTPBL        = r1                                  ; timer preset (low)
-.def bTPBH        = r2                                  ; timer preset (high)
-.def xyzLast      = r3                                  ; last seen xyz-combined byte
-.def xyzNew       = r4                                  ; new calcualted xyz-combined byte
-.def vecOrient    = r5                                  ; vector of orientation (0-5)
-.def xyzChanged   = r6                                  ; accumulator for orientation change state
-.def bCopyAccu    = r7                                  ; accumulator for copying bytes from FLASH to RAM
-.def bSample      = r8                                  ; value of curent sample in sound
-.def bSREG        = r9                                  ; we do no push if we are able to prevent it
+.def bTPBL        = r1            ; timer preset (low)
+.def bTPBH        = r2            ; timer preset (high)
+.def xyzLast      = r3            ; last seen xyz-combined byte
+.def xyzNew       = r4            ; new calcualted xyz-combined byte
+.def vecOrient    = r5            ; vector of orientation (0-5)
+.def xyzChanged   = r6            ; accumulator for orientation change state
+.def bCopyAccu    = r7            ; accumulator for copying bytes from FLASH to RAM
+.def bSample      = r8            ; value of curent sample in sound
+.def bSREG        = r9            ; we do no push if we are able to prevent it
 
 ; high registers variables
-.def valNULL      = r16                                 ; simply a NULL
-.def bTemp        = r17                                 ; a short sighted temporary value
-.def bInput       = r18                                 ; see it as 'input accumulator'
-.def bCurrentAxis = r19                                 ; STATUS:the axis the current measuremnt is running on
+.def valNULL      = r16           ; simply a NULL
+.def bTemp        = r17           ; a short sighted temporary value
+.def bInput       = r18           ; see it as 'input accumulator'
+.def bCurrentAxis = r19           ; STATUS:the axis the current measuremnt is running on
 
 
 ; ============================================================================================================
 ; Staring of the programm
 
      setup:
-            cli                                         ; we don't wish to get interruptet - while setting up
+            cli                                           ; we don't wish to get interruptet - while setting up
 
 ; initialize named variables
 
-            clr     valNULL                             ; 1   valNULL has to become NULL
-            clr     bSample                             ; 1   no klick on startup
+            clr     valNULL                               ; 1   valNULL has to become NULL
+            clr     bSample                               ; 1   no klick on startup
 
-            ldi     bTemp,        vecUPRT               ; 1   the asumed position at startup is upright
-            mov     vecOrient,    bTemp                 ; 1   if wrong - it will be corrected in ms
+            ldi     bTemp,        vecUPRT                 ; 1   the asumed position at startup is upright
+            mov     vecOrient,    bTemp                   ; 1   if wrong - it will be corrected in ms
 
-            ldi     bTemp,        xyzUPRT               ; 1   if we wish to prevent unneccesary action
-            mov     xyzLast,      bTemp                 ; 1   we have to set the associated xyzLast value
+            ldi     bTemp,        xyzUPRT                 ; 1   if we wish to prevent unneccesary action
+            mov     xyzLast,      bTemp                   ; 1   we have to set the associated xyzLast value
 
-            ldi     bTemp,        vecCHANGED            ; 1   we pretent to had a change of orientaiton (which we
-            mov     xyzChanged,   bTemp                 ; 1   had indeed) to ensure any side processing will execute
+            ldi     bTemp,        vecCHANGED              ; 1   we pretent to had a change of orientaiton (which we
+            mov     xyzChanged,   bTemp                   ; 1   had indeed) to ensure any side processing will execute
 
-            ldi     bCurrentAxis, Xaxis                 ; 1   at the first measurement, we test axis X
+            ldi     bCurrentAxis, Xaxis                   ; 1   at the first measurement, we test axis X
 
-            ldi     bTemp,        TPBL                  ; 1   timer preset (low)
-            mov     bTPBL,        bTemp                 ; 1     preloading it optimizes ISR procedure
-            ldi     bTemp,        TPBH                  ; 1   timer preset (high)
-            mov     bTPBH,        bTemp                 ; 1     by reducing timer refload by 2 cycles
+            ldi     bTemp,        TPBL                    ; 1   timer preset (low)
+            mov     bTPBL,        bTemp                   ; 1     preloading it optimizes ISR procedure
+            ldi     bTemp,        TPBH                    ; 1   timer preset (high)
+            mov     bTPBH,        bTemp                   ; 1     by reducing timer refload by 2 cycles
 
 ; initialize stak pointer
 
-            ldi     bTemp,        low (RAMEND)          ; 1   initializing stack pointer
-            out     SPL,          bTemp                 ; 1
-            ldi     bTemp,        high(RAMEND)          ; 1
-            out     SPH,          bTemp                 ; 1
+            ldi     bTemp,        low (RAMEND)            ; 1   initializing stack pointer
+            out     SPL,          bTemp                   ; 1
+            ldi     bTemp,        high(RAMEND)            ; 1
+            out     SPH,          bTemp                   ; 1
 
 ; prepair timer interrupt
 
 .ifdef ATmega8
-            out     TCCR1A,       valNULL               ; 1
-            ldi     bTemp,        1 << CS10             ; 1   Clock Select Bit 1: set timer1 prescaler to 1
-            out     TCCR1B,       bTemp                 ; 1
-            ldi     bTemp,        1 << TOIE1            ; 1   Timer/Counter1 Overflow Interrupt Enable
-            out     TIMSK,        bTemp                 ; 1
+            out     TCCR1A,       valNULL                 ; 1
+            ldi     bTemp,        1 << CS10               ; 1   Clock Select Bit 1: set timer1 prescaler to 1
+            out     TCCR1B,       bTemp                   ; 1
+            ldi     bTemp,        1 << TOIE1              ; 1   Timer/Counter1 Overflow Interrupt Enable
+            out     TIMSK,        bTemp                   ; 1
 .else
-            sts     TCCR1A,       valNULL               ; 2
-            ldi     bTemp,        1 << CS10             ; 1   Clock Select Bit 1: set timer1 prescaler to 1
-            sts     TCCR1B,       bTemp                 ; 2
-            ldi     bTemp,        1 << TOIE1            ; 1   Timer/Counter1 Overflow Interrupt Enable
-            sts     TIMSK1,       bTemp                 ; 2
+            sts     TCCR1A,       valNULL                 ; 2
+            ldi     bTemp,        1 << CS10               ; 1   Clock Select Bit 1: set timer1 prescaler to 1
+            sts     TCCR1B,       bTemp                   ; 2
+            ldi     bTemp,        1 << TOIE1              ; 1   Timer/Counter1 Overflow Interrupt Enable
+            sts     TIMSK1,       bTemp                   ; 2
 .endif
 
 ; define PORTC as ADC input
 
-            ldi     bTemp,        0xFF                  ; 1   all pins
+            ldi     bTemp,        0xFF                    ; 1   all pins
 
-            out     ctlInput,     valNULL               ; 1   all pins to input mode
-            out     iopInput,     bTemp                 ; 1   all pins to pullup mode
+            out     ctlInput,     valNULL                 ; 1   all pins to input mode
+            out     iopInput,     bTemp                   ; 1   all pins to pullup mode
 
-            out     ctlSound,     bTemp                 ; 1   set all pins to output mode for sound
+            out     ctlSound,     bTemp                   ; 1   set all pins to output mode for sound
 
 ; initialize destination/source address for RAM-sound starting by YL=0
-            ldi     YL,           low (abSound)         ; 1   sound wave into RAM
-            ldi     YH,           high(abSound)         ; 1
-            cpse    YL,           valNULL               ; 1-3 is YL already NULL ?
-            inc     YH                                  ; 1   no => we use the next higher adress with YL = 0
+            ldi     YL,           low (abSound)           ; 1   sound wave into RAM
+            ldi     YH,           high(abSound)           ; 1
+            cpse    YL,           valNULL                 ; 1-3 is YL already NULL ?
+            inc     YH                                    ; 1   no => we use the next higher adress with YL = 0
 
 ; define PORTB as output digital output
 
-            ldi     bTemp,        0xFF                  ; 1   all pins
-            out     DDRB,         bTemp                 ; 1   set output pins for PORTB
+            ldi     bTemp,        0xFF                    ; 1   all pins
+            out     DDRB,         bTemp                   ; 1   set output pins for PORTB
 
 .ifdef ATmega8
 ;           out     DIDR0,        valNULL                 ; 0   not at ATmega8?
@@ -306,23 +307,23 @@
 ; this is a kind of multi tasking window, we do something usefull an become interrupted if the timer calls
      forever:
 
-     Yield_01:                                          ; copy current sound to RAM if orientation changed
-            tst     xyzChanged                          ; 1   if orientation has not changed
-            breq    Yield_02                            ; 1-2   we do nothings about it
-            tst     pSample                             ; 1   we only change the sound if it will not click
-            brne    Yield_02                            ; 1-2   otherwise we try later
-            cli                                         ; 1   no interrupts, we are changing the world
-            ldi     ZL,           low (awSoundFlash*2)  ; 1   sound address in FLASH
-            ldi     ZH,           high(awSoundFlash*2)  ; 1   
-            add     ZH,           vecOrient             ; 1   Z + 256*'orientation' to address the chosen sound
-            clr     YL                                  ; 1   one times 0 to 0 makes 256 (sound bytes)
-    CopyByte:                                           ; 256*7 = 1792 cycles = 0.112 ms
-            lpm     bCopyAccu,    Z+                    ; 3   read next byte from FLASH
-            st      Y,            bCopyAccu             ; 1   write this byte to RAM
-            inc     YL                                  ; 1   one sample done
-            brne    CopyByte                            ; 2-1 if not NULL we have to copy another one
-            sei                                         ; 1   ok, done with the critical path
-            clr     xyzChanged                          ; 1   ok, orientation WAS changed
+     Yield_01:                                            ; copy current sound to RAM if orientation changed
+            tst     xyzChanged                            ; 1   if orientation has not changed
+            breq    Yield_02                              ; 1-2   we do nothings about it
+            tst     pSample                               ; 1   we only change the sound if it will not click
+            brne    Yield_02                              ; 1-2   otherwise we try later
+            cli                                           ; 1   no interrupts, we are changing the world
+            ldi     ZL,           low (awSoundFlash*2)    ; 1   sound address in FLASH
+            ldi     ZH,           high(awSoundFlash*2)    ; 1   
+            add     ZH,           vecOrient               ; 1   Z + 256*'orientation' to address the chosen sound
+            clr     YL                                    ; 1   one times 0 to 0 makes 256 (sound bytes)
+    CopyByte:                                             ; 256*7 = 1792 cycles = 0.112 ms
+            lpm     bCopyAccu,    Z+                      ; 3   read next byte from FLASH
+            st      Y,            bCopyAccu               ; 1   write this byte to RAM
+            inc     YL                                    ; 1   one sample done
+            brne    CopyByte                              ; 2-1 if not NULL we have to copy another one
+            sei                                           ; 1   ok, done with the critical path
+            clr     xyzChanged                            ; 1   ok, orientation WAS changed
 
     Yield_02:
             sei
@@ -336,140 +337,140 @@
 ; set timer for next interrupt
 
 .ifdef ATmega8
-            out     TCNT1L,       bTPBL                 ; 1 Timer/Counter1
-            out     TCNT1H,       bTPBH                 ; 1 we have to set timer values each time
+            out     TCNT1L,       bTPBL                   ; 1 Timer/Counter1
+            out     TCNT1H,       bTPBH                   ; 1 we have to set timer values each time
 .else
-            sts     TCNT1L,       bTPBL                 ; 2 Timer/Counter1
-            sts     TCNT1H,       bTPBH                 ; 2 we have to set timer values each time
+            sts     TCNT1L,       bTPBL                   ; 2 Timer/Counter1
+            sts     TCNT1H,       bTPBH                   ; 2 we have to set timer values each time
 .endif
 
 ; not to forget, we are in constante time frame, so we output the sample from the previous round
 
             lsr     bSample
-            out     iopSound,     bSample               ; 1   send sample to output
+            out     iopSound,     bSample                 ; 1   send sample to output
 
 ; until here, it was all about timing, but CLR will modify SREG!
 
-            in      bSREG,        SREG                  ; 1   we have to save SREG for after
+            in      bSREG,        SREG                    ; 1   we have to save SREG for after
 
-            clr     bSample                             ; 1   we had it played, so we clear it off
+            clr     bSample                               ; 1   we had it played, so we clear it off
 
-            out     PORTB,        vecOrient             ; 1  show what we got (Orientation 0..6)
+            out     PORTB,        vecOrient               ; 1  show what we got (Orientation 0..6)
 
 ; check is measurement is finished
 
-            cpse    xyzChanged,   valNULL               ; 1-3 if there is a unhandled change of orientation pending
-            rjmp    NoAdcRead                           ; 2     we do nothings about any new orientation
+            cpse    xyzChanged,   valNULL                 ; 1-3 if there is a unhandled change of orientation pending
+            rjmp    NoAdcRead                             ; 2     we do nothings about any new orientation
 
-            lds     bTemp,        ADCSRA                ; 2   Gather Axis Position And Select Next Axis?
-            sbrc    bTemp,        ADSC                  ; 1-3 if ADSC in ADCSRA is ON, measurement is done
-            rjmp    NoAdcRead                           ; 2   Measuremnet not yet finished
+            lds     bTemp,        ADCSRA                  ; 2   Gather Axis Position And Select Next Axis?
+            sbrc    bTemp,        ADSC                    ; 1-3 if ADSC in ADCSRA is ON, measurement is done
+            rjmp    NoAdcRead                             ; 2   Measuremnet not yet finished
 
 ; yes it was, so we start processing the result
 
-            lds     bInput,       ADCH                  ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
+            lds     bInput,       ADCH                    ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
 .ifdef ATmega
-            sbi     ADCSRA,       ADIF                  ; 1   only on Atmega8 !
+            sbi     ADCSRA,       ADIF                    ; 1   only on Atmega8 !
 .else
-            ori     bTemp,        1 << ADIF             ; 1   we have to clear ADIF to proceed with ADCing
-            sts     ADCSRA,       bTemp                 ; 2   
+            ori     bTemp,        1 << ADIF               ; 1   we have to clear ADIF to proceed with ADCing
+            sts     ADCSRA,       bTemp                   ; 2   
 .endif
 
 ; map input to table range 0, 1 or 2
 
      MI2TR:
-            subi    bInput,       cbMin                 ; 1   input - min to normalize input
+            subi    bInput,       cbMin                   ; 1   input - min to normalize input
 
-            cpi     bInput,       cbThresholdU          ; 1   are we over the upper threshold?
-            brcs    MI2TR_test_for_1                    ; 1-2 no, possibly, we have to return 1
-            ldi     bInput,       2                     ; 1   we have to return 2
-            rjmp    BuildOrientation                    ; 2
+            cpi     bInput,       cbThresholdU            ; 1   are we over the upper threshold?
+            brcs    MI2TR_test_for_1                      ; 1-2 no, possibly, we have to return 1
+            ldi     bInput,       2                       ; 1   we have to return 2
+            rjmp    BuildOrientation                      ; 2
      MI2TR_test_for_1:
-            cpi     bInput,       cbThresholdL          ; 1   are we over the lower threshold?
-            brcs    MI2TR_return_0                      ; 1-2 no, we have to return 0
-            ldi     bInput,       1                     ; 1   we have to return 1
-            rjmp    BuildOrientation                    ; 2 
+            cpi     bInput,       cbThresholdL            ; 1   are we over the lower threshold?
+            brcs    MI2TR_return_0                        ; 1-2 no, we have to return 0
+            ldi     bInput,       1                       ; 1   we have to return 1
+            rjmp    BuildOrientation                      ; 2 
      MI2TR_return_0:
-            ldi     bInput,       0                     ; 1 
-            rjmp    AxisCombined                        ; 2   with 0, there is nothings to combine
-     BuildOrientation:                                  ;     formula: xyNew = (X shl 4) OR (Y shl 2) OR Y
-            cpi     bCurrentAxis, Zaxis                 ; 1   if this was Z
-            breq    AxisCombine                         ; 1-2    we will not shift any bit
-            cpi     bCurrentAxis, Yaxis                 ; 1   if this was not Y (it is X)
-            breq    ShiftY                              ; 1      we will only shift 2 bits to left
-     ShiftX:                                            ;     dummy lable, yust for understanding the code
-            lsl     bInput                              ; 1   we have to shift X axis result 4 bits to the left
-            lsl     bInput                              ; 1
+            ldi     bInput,       0                       ; 1 
+            rjmp    AxisCombined                          ; 2   with 0, there is nothings to combine
+     BuildOrientation:                                    ;     formula: xyNew = (X shl 4) OR (Y shl 2) OR Y
+            cpi     bCurrentAxis, Zaxis                   ; 1   if this was Z
+            breq    AxisCombine                           ; 1-2    we will not shift any bit
+            cpi     bCurrentAxis, Yaxis                   ; 1   if this was not Y (it is X)
+            breq    ShiftY                                ; 1      we will only shift 2 bits to left
+     ShiftX:                                              ;     dummy lable, yust for understanding the code
+            lsl     bInput                                ; 1   we have to shift X axis result 4 bits to the left
+            lsl     bInput                                ; 1
      ShiftY:
-            lsl     bInput                              ; 1   we have to shift Y axis result 2 bits o the left
-            lsl     bInput                              ; 1
+            lsl     bInput                                ; 1   we have to shift Y axis result 2 bits o the left
+            lsl     bInput                                ; 1
      AxisCombine:
-            or      xyzNew,       bInput                ; 1   combine the last result to 'measured vector'
+            or      xyzNew,       bInput                  ; 1   combine the last result to 'measured vector'
 
 ; new mapped/normalized bits in place inside xyzNew
      AxisCombined:
-            dec     bCurrentAxis                        ; 1   7, 6, 5, but not 4 = 111, 110, 101, but not 100
-            cpi     bCurrentAxis, Naxis                 ; 1   if we reached NO-AXIS we have completed a 3axes cycle
-            breq    CyclusComplete                      ; 1-2   so we have to recognize what we are dealing with
-            rjmp    AxisSelected                        ; 2     otherwise, we simply measure the next axis
+            dec     bCurrentAxis                          ; 1   7, 6, 5, but not 4 = 111, 110, 101, but not 100
+            cpi     bCurrentAxis, Naxis                   ; 1   if we reached NO-AXIS we have completed a 3axes cycle
+            breq    CyclusComplete                        ; 1-2   so we have to recognize what we are dealing with
+            rjmp    AxisSelected                          ; 2     otherwise, we simply measure the next axis
      CyclusComplete:
-            ori     bCurrentAxis, Xaxis                 ; 1   at first, after we finished this, we start with X axis
+            ori     bCurrentAxis, Xaxis                   ; 1   at first, after we finished this, we start with X axis
 
 ; all three axis were read, now we have to deal with the result
 
-            cp      xyzNew,       xyzLast               ; 1   did orientation change ?
-            breq    ResetBuffers                        ; 1-2 no - so we clean up
+            cp      xyzNew,       xyzLast                 ; 1   did orientation change ?
+            breq    ResetBuffers                          ; 1-2 no - so we clean up
 
 ; here we found out, that the orientation had changed, but we don't know if the new orientation is valid
 ; we only accept a change of orientation if the new orientation is valid, so we have to filter for the result
 ; for validity.
 
-            mov     bInput,       xyzNew                ; 1   cpi does not work with LOW REGISTERS
+            mov     bInput,       xyzNew                  ; 1   cpi does not work with LOW REGISTERS
 
-            ldi     bTemp,        vecUPRT               ; 1   if this is the new postion, we are UPRT
-            cpi     bInput,       xyzUPRT               ; 1   is it the new position?
-            breq    ValidOrientation                    ; 1-2   yes, so we accept it
-            ldi     bTemp,        vecLEFT               ; 1   ...
-            cpi     bInput,       xyzLEFT               ; 1   ...
-            breq    ValidOrientation                    ; 1-2 ...
-            ldi     bTemp,        vecDOWN               ; 1
-            cpi     bInput,       xyzDOWN               ; 1
-            breq    ValidOrientation                    ; 1-2
-            ldi     bTemp,        vecRGHT               ; 1
-            cpi     bInput,       xyzRGHT               ; 1
-            breq    ValidOrientation                    ; 1-2
-            ldi     bTemp,        vecBACK               ; 1
-            cpi     bInput,       xyzBACK               ; 1
-            breq    ValidOrientation                    ; 1-2
-            ldi     bTemp,        vecFRNT               ; 1
-            cpi     bInput,       xyzFRNT               ; 1
-            breq    ValidOrientation                    ; 1-2 => 19 cycles to find out if and what
+            ldi     bTemp,        vecUPRT                 ; 1   if this is the new postion, we are UPRT
+            cpi     bInput,       xyzUPRT                 ; 1   is it the new position?
+            breq    ValidOrientation                      ; 1-2   yes, so we accept it
+            ldi     bTemp,        vecLEFT                 ; 1   ...
+            cpi     bInput,       xyzLEFT                 ; 1   ...
+            breq    ValidOrientation                      ; 1-2 ...
+            ldi     bTemp,        vecDOWN                 ; 1
+            cpi     bInput,       xyzDOWN                 ; 1
+            breq    ValidOrientation                      ; 1-2
+            ldi     bTemp,        vecRGHT                 ; 1
+            cpi     bInput,       xyzRGHT                 ; 1
+            breq    ValidOrientation                      ; 1-2
+            ldi     bTemp,        vecBACK                 ; 1
+            cpi     bInput,       xyzBACK                 ; 1
+            breq    ValidOrientation                      ; 1-2
+            ldi     bTemp,        vecFRNT                 ; 1
+            cpi     bInput,       xyzFRNT                 ; 1
+            breq    ValidOrientation                      ; 1-2 => 19 cycles to find out if and what
 
-            rjmp    ResetBuffers                        ; 2   the orientation is not valid, we irgnoe it
+            rjmp    ResetBuffers                          ; 2   the orientation is not valid, we irgnoe it
      ValidOrientation:
-            mov     vecOrient,    bTemp                 ; 1   the last assumed logical orientation was correct
-            mov     xyzLast,      xyzNew                ; 1   the new orientation becomes the current one
-            inc     xyzChanged                          ; 1   we remember: the orientation has changed
+            mov     vecOrient,    bTemp                   ; 1   the last assumed logical orientation was correct
+            mov     xyzLast,      xyzNew                  ; 1   the new orientation becomes the current one
+            inc     xyzChanged                            ; 1   we remember: the orientation has changed
 
      ResetBuffers:
-            clr     xyzNew                              ; 1   clear buffer for bit manipulaiton
+            clr     xyzNew                                ; 1   clear buffer for bit manipulaiton
 
 ; next axis for measurement ist set, now we start the next measurement
 
      AxisSelected:
-            ldi     bTemp,        AdcMuxConfig          ; 1   initializing measurement for the nex axis
-            or      bTemp,        bCurrentAxis          ; 1   this is the axis
+            ldi     bTemp,        AdcMuxConfig            ; 1   initializing measurement for the nex axis
+            or      bTemp,        bCurrentAxis            ; 1   this is the axis
 .ifdef ATmega8
-            out     ADMUX,        bTemp                 ; 1   MUX is now informed where and how to measure
-            sbi     ADCSRA,       ADSC                  ; 1   Start Measurement Now (on ATMEGA8)
+            out     ADMUX,        bTemp                   ; 1   MUX is now informed where and how to measure
+            sbi     ADCSRA,       ADSC                    ; 1   Start Measurement Now (on ATMEGA8)
 .else
-            sts     ADMUX,        bTemp                 ; 2   MUX is now informed where and how to measure
-            lds     bTemp,        ADCSRA                ; 2   we are on Atmega 328, more steps to do
-            ori     bTemp,        1 << ADSC             ; 1   add the start flag to the ADCSRA value
-            sts     ADCSRA,       bTemp                 ; 2   Start Measurement Now
+            sts     ADMUX,        bTemp                   ; 2   MUX is now informed where and how to measure
+            lds     bTemp,        ADCSRA                  ; 2   we are on Atmega 328, more steps to do
+            ori     bTemp,        1 << ADSC               ; 1   add the start flag to the ADCSRA value
+            sts     ADCSRA,       bTemp                   ; 2   Start Measurement Now
 .endif
-            tst     xyzChanged                          ; 1   were orientation changed?
-            breq    NoOutput                            ; 1-2 if not, we also will not change anything
+            tst     xyzChanged                            ; 1   were orientation changed?
+            breq    NoOutput                              ; 1-2 if not, we also will not change anything
 
      NoOutput:
 
@@ -480,12 +481,12 @@
 ; get the next sample but don't output because here, we hae no constant time frame anymore
 ; we do not use "ld bSample, Y+" because we don't want to increment YH!
 
-            ld      bSample,      Y                     ; 1   we get the value, we use it later
-            inc     pSample                             ; 1   next time, next sample (pSample is YL)
+            ld      bSample,      Y                       ; 1   we get the value, we use it later
+            inc     pSample                               ; 1   next time, next sample (pSample is YL)
 
      interrupt_timer_1_end:
 
-            out     SREG,         bSREG                 ; 1   now we are clean again
+            out     SREG,         bSREG                   ; 1   now we are clean again
 
             reti
 
