@@ -268,7 +268,7 @@
             ldi     bTemp,        0xFF                    ; 1   all pins
             out     DDRB,         bTemp                   ; 1   set output pins for PORTB
 
-.ifdef ATmega8                                            ;     = 9 cycles
+.ifdef ATmega8
 ;           out     DIDR0,        valNULL                 ; 0   not at ATmega8?
 ;           out     ADCSRB,       valNULL                 ; 0   not at ATmega8?
 
@@ -286,7 +286,6 @@
             out     TCNT1L,       valNULL                 ; 1 initial time setup. we are setting up, 
             out     TCNT1H,       valNULL                 ; 1 the first periode does no matter
 .else
-                                                          ;     = 17 cycles
             sts     DIDR0,        valNULL                 ; 2   no digital buffer for ADC input
             sts     ADCSRB,       valNULL                 ; 2   default configuration
 
