@@ -70,9 +70,9 @@
 
 
 ; Arduino Nano 3.0 shipped with 168 and (later) 328
-.DEVICE atmega8
+;.DEVICE atmega8
 ;.DEVICE atmega168
-;.DEVICE atmega328
+.DEVICE atmega328
 
 
 
@@ -102,8 +102,11 @@
 ; ============================================================================================================
 ; Definition Section
 
-.equ ctlInput     = DDRC          ; port control register
-.equ iopInput     = PORTC         ; input PORT for digital input
+.equ ctlInput     = DDRB          ; port control register
+.equ iopInput     = PORTB         ; input PORT for digital input
+
+.equ ctlADCin     = DDRC          ; port control register
+.equ iopADCin     = PORTC         ; input PORT for digital input
 
 .equ ctlSound     = DDRD          ; port control register fpr sound output
 .equ iopSound     = PORTD         ; output PORT for DA converter (8bit sound sample output)
@@ -248,11 +251,10 @@
 
 ; define PORTC as ADC input
 
+
+            out     ctlADCin,     valNULL                 ; 1   all pins to input mode
+
             ldi     bTemp,        0xFF                    ; 1   all pins
-
-            out     ctlInput,     valNULL                 ; 1   all pins to input mode
-            out     iopInput,     bTemp                   ; 1   all pins to pullup mode
-
             out     ctlSound,     bTemp                   ; 1   set all pins to output mode for sound
 
 ; initialize destination/source address for RAM-sound starting by YL=0
@@ -266,7 +268,7 @@
             ldi     bTemp,        0xFF                    ; 1   all pins
             out     DDRB,         bTemp                   ; 1   set output pins for PORTB
 
-.ifdef ATmega8
+.ifdef ATmega8                                            ;     = 9 cycles
 ;           out     DIDR0,        valNULL                 ; 0   not at ATmega8?
 ;           out     ADCSRB,       valNULL                 ; 0   not at ATmega8?
 
@@ -284,6 +286,7 @@
             out     TCNT1L,       valNULL                 ; 1 initial time setup. we are setting up, 
             out     TCNT1H,       valNULL                 ; 1 the first periode does no matter
 .else
+                                                          ;     = 17 cycles
             sts     DIDR0,        valNULL                 ; 2   no digital buffer for ADC input
             sts     ADCSRB,       valNULL                 ; 2   default configuration
 
