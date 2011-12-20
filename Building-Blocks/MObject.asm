@@ -348,13 +348,10 @@
 
 ; not to forget, we are in constante time frame, so we output the sample from the previous round
 
+            in      bSREG,        SREG                    ; 1   we have to save SREG for after, LSR will modify SREG
+
             lsr     bSample
             out     iopSound,     bSample                 ; 1   send sample to output
-
-; until here, it was all about timing, but CLR will modify SREG!
-
-            in      bSREG,        SREG                    ; 1   we have to save SREG for after
-
             clr     bSample                               ; 1   we had it played, so we clear it off
 
             out     PORTB,        vecOrient               ; 1  show what we got (Orientation 0..6)
@@ -364,16 +361,21 @@
             cpse    xyzChanged,   valNULL                 ; 1-3 if there is a unhandled change of orientation pending
             rjmp    NoAdcRead                             ; 2     we do nothings about any new orientation
 
+.ifdef ATmega8
+            sbic    ADCSRA,       ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
+.else
             lds     bTemp,        ADCSRA                  ; 2   Gather Axis Position And Select Next Axis?
-            sbrc    bTemp,        ADSC                    ; 1-3 if ADSC in ADCSRA is ON, measurement is done
+            sbrc    bTemp,        ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
+.endif
             rjmp    NoAdcRead                             ; 2   Measuremnet not yet finished
 
 ; yes it was, so we start processing the result
 
-            lds     bInput,       ADCH                    ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
 .ifdef ATmega
-            sbi     ADCSRA,       ADIF                    ; 1   only on Atmega8 !
+            in      bInput,       ADCH                    ; 1   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
+            sbi     ADCSRA,       ADIF                    ; 1   we have to clear ADIF to proceed with ADCing
 .else
+            lds     bInput,       ADCH                    ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
             ori     bTemp,        1 << ADIF               ; 1   we have to clear ADIF to proceed with ADCing
             sts     ADCSRA,       bTemp                   ; 2   
 .endif
@@ -472,7 +474,7 @@
             sts     ADCSRA,       bTemp                   ; 2   Start Measurement Now
 .endif
             tst     xyzChanged                            ; 1   were orientation changed?
-            breq    NoOutput                              ; 1-2 if not, we also will not change anything
+            breq    NoOutput                              ; 1-2 if not, we will not change anything also
 
      NoOutput:
 
