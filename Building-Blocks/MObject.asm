@@ -241,7 +241,7 @@
             out     TCCR1B,       bTemp                   ; 1
             ldi     bTemp,        1 << TOIE1              ; 1   Timer/Counter1 Overflow Interrupt Enable
             out     TIMSK,        bTemp                   ; 1
-.else
+.else ; 5:8
             sts     TCCR1A,       valNULL                 ; 2
             ldi     bTemp,        1 << CS10               ; 1   Clock Select Bit 1: set timer1 prescaler to 1
             sts     TCCR1B,       bTemp                   ; 2
@@ -285,7 +285,7 @@
 
             out     TCNT1L,       valNULL                 ; 1 initial time setup. we are setting up, 
             out     TCNT1H,       valNULL                 ; 1 the first periode does no matter
-.else
+.else 9:17
             sts     DIDR0,        valNULL                 ; 2   no digital buffer for ADC input
             sts     ADCSRB,       valNULL                 ; 2   default configuration
 
@@ -301,8 +301,8 @@
 
 ; set timer for first interrupt
 
-            sts     TCNT1L,       valNULL                 ; 1 initial time setup. we are setting up, 
-            sts     TCNT1H,       valNULL                 ; 1 the first periode does no matter
+            sts     TCNT1L,       valNULL                 ; 2 initial time setup. we are setting up, 
+            sts     TCNT1H,       valNULL                 ; 2 the first periode does no matter
 .endif
             sei                                           ; 1 now we are ready to receive interrupts
 
@@ -341,7 +341,7 @@
 .ifdef ATmega8
             out     TCNT1L,       bTPBL                   ; 1 Timer/Counter1
             out     TCNT1H,       bTPBH                   ; 1 we have to set timer values each time
-.else
+.else ; 2:4
             sts     TCNT1L,       bTPBL                   ; 2 Timer/Counter1
             sts     TCNT1H,       bTPBH                   ; 2 we have to set timer values each time
 .endif
@@ -363,7 +363,7 @@
 
 .ifdef ATmega8
             sbic    ADCSRA,       ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
-.else
+.else ; 2:6
             lds     bTemp,        ADCSRA                  ; 2   Gather Axis Position And Select Next Axis?
             sbrc    bTemp,        ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
 .endif
@@ -374,7 +374,7 @@
 .ifdef ATmega
             in      bInput,       ADCH                    ; 1   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
             sbi     ADCSRA,       ADIF                    ; 1   we have to clear ADIF to proceed with ADCing
-.else
+.else ; 2:5
             lds     bInput,       ADCH                    ; 2   we ignore the L-Byte (=> bAxis = result/4) (see ADLAR bit)
             ori     bTemp,        1 << ADIF               ; 1   we have to clear ADIF to proceed with ADCing
             sts     ADCSRA,       bTemp                   ; 2   
@@ -467,7 +467,7 @@
 .ifdef ATmega8
             out     ADMUX,        bTemp                   ; 1   MUX is now informed where and how to measure
             sbi     ADCSRA,       ADSC                    ; 1   Start Measurement Now (on ATMEGA8)
-.else
+.else ; 2:7
             sts     ADMUX,        bTemp                   ; 2   MUX is now informed where and how to measure
             lds     bTemp,        ADCSRA                  ; 2   we are on Atmega 328, more steps to do
             ori     bTemp,        1 << ADSC               ; 1   add the start flag to the ADCSRA value
