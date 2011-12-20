@@ -350,7 +350,7 @@
 
             in      bSREG,        SREG                    ; 1   we have to save SREG for after, LSR will modify SREG
 
-            lsr     bSample
+;           lsr     bSample                               ; 1   reduces output level
             out     iopSound,     bSample                 ; 1   send sample to output
             clr     bSample                               ; 1   we had it played, so we clear it off
 
