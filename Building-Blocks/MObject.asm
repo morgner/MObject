@@ -285,7 +285,7 @@
 
             out     TCNT1L,       valNULL                 ; 1 initial time setup. we are setting up, 
             out     TCNT1H,       valNULL                 ; 1 the first periode does no matter
-.else 9:17
+.else ; 9:17
             sts     DIDR0,        valNULL                 ; 2   no digital buffer for ADC input
             sts     ADCSRB,       valNULL                 ; 2   default configuration
 
@@ -314,11 +314,11 @@
             breq    Yield_02                              ; 1-2   we do nothings about it
             tst     pSample                               ; 1   we only change the sound if it will not click
             brne    Yield_02                              ; 1-2   otherwise we try later
-            cli                                           ; 1   no interrupts, we are changing the world
             ldi     ZL,           low (awSoundFlash*2)    ; 1   sound address in FLASH
             ldi     ZH,           high(awSoundFlash*2)    ; 1   
             add     ZH,           vecOrient               ; 1   Z + 256*'orientation' to address the chosen sound
             clr     YL                                    ; 1   one times 0 to 0 makes 256 (sound bytes)
+            cli                                           ; 1   no interrupts, we are changing the world
     CopyByte:                                             ; 256*7 = 1792 cycles = 0.112 ms
             lpm     bCopyAccu,    Z+                      ; 3   read next byte from FLASH
             st      Y,            bCopyAccu               ; 1   write this byte to RAM
@@ -328,7 +328,6 @@
             clr     xyzChanged                            ; 1   ok, orientation WAS changed
 
     Yield_02:
-            sei
             rjmp    forever
 
 ; ============================================================================================================
