@@ -13,3 +13,14 @@ output sounds depending on the position of the object in space.
 
  * If you're in a hurry and in search of the 'real code' goto 'Building-Blocks'.
  * If you whish to see some C/C++ code for your research, goto 'Analysis'.
+
+===STATE OF THE ART===
+
+Currently the state of the art of MObject is to change the sound produced to
+one out of six depending on it's orientation in the world. Next are two steps
+
+ (1) Change the hardware to ATmega 8 (to speed it up)
+ (2) Sound fading to make a more natural sounding musical object
+ (3) Percussion detection to finaly make the object usable
+ (4) Design a usefull PCB to integrate MObject into objects
+ (5) Develop interobject communicaiton maechanics to provide swarm 'intelligence'
