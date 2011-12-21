@@ -17,7 +17,7 @@ output sounds depending on the position of the object in space.
 ===STATE OF THE ART===
 
 Currently the state of the art of MObject is to change the sound produced to
-one out of six depending on it's orientation in the world. Next are two steps
+one out of six depending on it's orientation in the world. Next two steps are
 
  (1) Change the hardware to ATmega 8 (to speed it up)
  (2) Sound fading to make a more natural sounding musical object
