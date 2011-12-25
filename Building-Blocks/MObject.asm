@@ -74,8 +74,11 @@
 ;.DEVICE atmega168
 .DEVICE atmega328
 
-
-
+.ifdef ATmega8
+  .message "Compiling for ATmega8"
+.else
+  .message "Compiling for - can not tell"
+.endif
 
 ; ============================================================================================================
 ; DATA SEGMENT (RAM)
@@ -319,7 +322,7 @@
             add     ZH,           vecOrient               ; 1   Z + 256*'orientation' to address the chosen sound
             clr     YL                                    ; 1   one times 0 to 0 makes 256 (sound bytes)
             cli                                           ; 1   no interrupts, we are changing the world
-    CopyByte:                                             ; 256*7 = 1792 cycles = 0.112 ms
+    CopyByte:     ; 256*7 = 1792 cycles = 0.112 ms
             lpm     bCopyAccu,    Z+                      ; 3   read next byte from FLASH
             st      Y,            bCopyAccu               ; 1   write this byte to RAM
             inc     YL                                    ; 1   one sample done
