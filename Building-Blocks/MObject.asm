@@ -366,7 +366,7 @@
 
             out     PORTB,        vecOrient               ; 1  show what we got (Orientation 0..6)
 
-; check is measurement is finished
+; check if measurement is finished
 
             cpse    xyzChanged,   valNULL                 ; 1-3 if there is a unhandled change of orientation pending
             rjmp    NoAdcRead                             ; 2     we do nothings about any new orientation
