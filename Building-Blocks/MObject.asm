@@ -321,15 +321,23 @@
      forever:
 
      Yield_01:                                            ; copy current sound to RAM if orientation changed
+; Check if we neeed a new sound wave, if so, copy required sound to SRAM
+
+; has orientation chenged to a new valid one?
             tst     xyzChanged                            ; 1   if orientation has not changed
-            breq    Yield_02                              ; 1-2   we do nothings about it
+            breq    Yield_01_end                          ; 1-2   we do nothings about it
+; are we ready to copy without accoustic side effect?
             tst     pSample                               ; 1   we only change the sound if it will not click
             brne    Yield_02                              ; 1-2   otherwise we try later
+; calculate the source address for the sound
             ldi     ZL,           low (awSoundFlash*2)    ; 1   sound address in FLASH
-            ldi     ZH,           high(awSoundFlash*2)    ; 1   
+            ldi     ZH,           high(awSoundFlash*2)    ; 1
+; here we select the required sound wave
             add     ZH,           vecOrient               ; 1   Z + 256*'orientation' to address the chosen sound
+; destination is adressed by Y starting with YH:0x00 - we need to set YL to 0x00
             clr     YL                                    ; 1   one times 0 to 0 makes 256 (sound bytes)
-            cli                                           ; 1   no interrupts, we are changing the world
+; sorry for this, I believe lpm r,Z+ has problems with interrupts
+           cli                                           ; 1   no interrupts, we are changing the world
     CopyByte:     ; 256*7 = 1792 cycles = 0.112 ms
             lpm     bCopyAccu,    Z+                      ; 3   read next byte from FLASH
             st      Y,            bCopyAccu               ; 1   write this byte to RAM
@@ -338,38 +346,17 @@
             sei                                           ; 1   ok, done with the critical path
             clr     xyzChanged                            ; 1   ok, orientation WAS changed
 
+    Yield_01_end:                                         ; end of yield procedure 01
+
+; ------------------------------------------------------------------------------------------------------------
     Yield_02:
-            rjmp    forever
-
-; ============================================================================================================
-; this is the time critical path
-
-     interrupt_timer_1:
-
-; set timer for next interrupt
-
-.ifdef ATmega8
-            out     TCNT1L,       bTPBL                   ; 1 Timer/Counter1
-            out     TCNT1H,       bTPBH                   ; 1 we have to set timer values each time
-.else ; 2:4
-            sts     TCNT1L,       bTPBL                   ; 2 Timer/Counter1
-            sts     TCNT1H,       bTPBH                   ; 2 we have to set timer values each time
-.endif
-
-; not to forget, we are in constante time frame, so we output the sample from the previous round
-
-            in      bSREG,        SREG                    ; 1   we have to save SREG for after, LSR will modify SREG
-
-;           lsr     bSample                               ; 1   reduces output level
-            out     iopSound,     bSample                 ; 1   send sample to output
-            clr     bSample                               ; 1   we had it played, so we clear it off
-
-            out     PORTB,        vecOrient               ; 1  show what we got (Orientation 0..6)
+; Check if orientation changed, if so signal it
+; We are constantly measuring one of the three ADXL335 axes. Se we find a measurement currently running or
+; ready to be processed. Measurement is: X-, Y-, Z-axis then orientation calculation and start new with X
 
 ; check if measurement is finished
-
-            cpse    xyzChanged,   valNULL                 ; 1-3 if there is a unhandled change of orientation pending
-            rjmp    NoAdcRead                             ; 2     we do nothings about any new orientation
+            cpse    xyzChanged,   valNULL                 ; 1-3 if there was no unhandled change of orientation
+            rjmp    Yield_02_end                          ; 2     we do nothings about any new orientation
 
 .ifdef ATmega8
             sbic    ADCSRA,       ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
@@ -377,7 +364,7 @@
             lds     bTemp,        ADCSRA                  ; 2   Gather Axis Position And Select Next Axis?
             sbrc    bTemp,        ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
 .endif
-            rjmp    NoAdcRead                             ; 2   Measuremnet not yet finished
+            rjmp    Yield_02_end                          ; 2   Measuremnet not yet finished
 
 ; yes it was, so we start processing the result
 
@@ -483,12 +470,37 @@
             ori     bTemp,        1 << ADSC               ; 1   add the start flag to the ADCSRA value
             sts     ADCSRA,       bTemp                   ; 2   Start Measurement Now
 .endif
-            tst     xyzChanged                            ; 1   were orientation changed?
-            breq    NoOutput                              ; 1-2 if not, we will not change anything also
 
-     NoOutput:
+    Yield_02_end:                                         ; end of yield procedure 02
 
-     NoAdcRead:
+    Yield_03:
+
+            rjmp    forever
+
+; ============================================================================================================
+; this is the time critical path
+
+     interrupt_timer_1:
+
+; set timer for next interrupt
+
+.ifdef ATmega8
+            out     TCNT1L,       bTPBL                   ; 1 Timer/Counter1
+            out     TCNT1H,       bTPBH                   ; 1 we have to set timer values each time
+.else ; 2:4
+            sts     TCNT1L,       bTPBL                   ; 2 Timer/Counter1
+            sts     TCNT1H,       bTPBH                   ; 2 we have to set timer values each time
+.endif
+
+; not to forget, we are in constante time frame, so we output the sample from the previous round
+
+            in      bSREG,        SREG                    ; 1   we have to save SREG for after, LSR will modify SREG
+
+;           lsr     bSample                               ; 1   reduces output level
+            out     iopSound,     bSample                 ; 1   send sample to output
+            clr     bSample                               ; 1   we had it played, so we clear it off
+
+            out     PORTB,        vecOrient               ; 1  show what we got (Orientation 0..6)
 
      play:
 
