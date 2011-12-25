@@ -142,7 +142,8 @@
 .equ Zaxis  = (1 << MUX2) | (0 << MUX1) | (1 << MUX0)                       ; Z => ADC5
 .equ Naxis  = (1 << MUX2) | (0 << MUX1) | (0 << MUX0)                       ; NO AXIS - Cycle Terminator
 
-.equ AdcPrescale  = (1 << ADPS2) | (0 << ADPS1) | (0 << ADPS0)              ; Scale: 16 => 1MHz on 16MHz
+;.equ AdcPrescale  = (1 << ADPS2) | (0 << ADPS1) | (0 << ADPS0)              ; Scale:  16 => 1.000kHz on 16MHz
+.equ AdcPrescale  = (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0)              ; Scale: 128 =>   125kHz on 16MHz
 
 .ifdef ATmega8
 .equ AdcConfig    = (1 << ADEN)  |                (1 << ADIF) | (0 << ADIE) ; ADC Enable, Clear Interrupt Flag
