@@ -436,8 +436,8 @@
             breq    ResetBuffers                          ; 1-2 no - so we clean up
 
 ; here we found out, that the orientation had changed, but we don't know if the new orientation is valid
-; we only accept a change of orientation if the new orientation is valid, so we have to filter for the result
-; for validity.
+; we only accept a change of orientation if the new orientation is valid, so we have to filter the result
+; for validity!
 
             mov     bInput,       xyzNew                  ; 1   cpi does not work with LOW REGISTERS
 
@@ -460,7 +460,7 @@
             cpi     bInput,       xyzFRNT                 ; 1
             breq    ValidOrientation                      ; 1-2 => 19 cycles to find out if and what
 
-            rjmp    ResetBuffers                          ; 2   the orientation is not valid, we irgnoe it
+            rjmp    ResetBuffers                          ; 2   the orientation is not valid, we irgnore it
      ValidOrientation:
             mov     vecOrient,    bTemp                   ; 1   the last assumed logical orientation was correct
             mov     xyzLast,      xyzNew                  ; 1   the new orientation becomes the current one
