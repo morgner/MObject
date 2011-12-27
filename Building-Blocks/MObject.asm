@@ -262,7 +262,6 @@
 
 ; define PORTC as ADC input
 
-
             out     ctlADCin,     valNULL                 ; 1   all pins to input mode
 
             ldi     bTemp,        0xFF                    ; 1   all pins
@@ -381,6 +380,9 @@
 
      MI2TR:
             subi    bInput,       cbMin                   ; 1   input - min to normalize input
+            brcc    MI2TR_not_to_null                     ; 1-2 if result was negative
+            clr     bInput                                ; 1     then result becomes NULL
+     MI2TR_not_to_null:
 
             cpi     bInput,       cbThresholdU            ; 1   are we over the upper threshold?
             brcs    MI2TR_test_for_1                      ; 1-2 no, possibly, we have to return 1
