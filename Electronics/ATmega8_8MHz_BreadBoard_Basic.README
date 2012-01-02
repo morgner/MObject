@@ -1,0 +1,119 @@
+Only for the Author as note! You will not do this, really!
+
+The author did all this only to:
+
+ a) minimize energy consumtion of the product
+ b) reduce complexity of the circuit
+ c) simplify manufacturing of the product
+
+8 MHz means 50% less cycles per time unit as 16 MHz
+To make it more understandable:
+16MHz means 200% cycles per time unit compared with 8 MHz
+
+You may be forced to use Assembler for your application to work!
+
+
+THIS MAY DESTROY YOUR MICRO CONTROLLER CHIP!!!
+==============================================
+
+DON'T DO THIS IF YOU HAVE NO GOOD REASON TO BELIEVE YOU DO KNOW WHAT YOU ARE DOING
+THE DOCUMENTATION MAY CONTAIN FATAL ERRORS OR MAY NOT BE SUITABLE FOR YOUR CHIP
+IT'S A FUSE WE ARE CHANGING. THINK ABOUT IT!
+
+There is a riddle in the description to ensure your brain is active while you
+try to change your micro controllers most important fuse.
+
+
+Changing the fuse in the ATmega8 to use the internal 8MHz clock
+---------------------------------------------------------------
+
+You need the ATmega inserted in some circuit capable to provide acces for a
+ISP programmer. An Arduino UNO board with socket for the ATmega for example.
+
+Also you need an ISP programmer
+
+Finally you need a Webbrowser and internet access to use the fuse calculator @:
+
+  http://www.engbedded.com/fusecalc/
+
+
+For the Breadboard assembly shown here, you are expected to have a:
+
+  sparkfun FTDI Basic Breakout - 5V
+
+  (http://www.sparkfun.com/products/9115)
+
+as programming adapter. You may use other USB adapters or programmers
+with your own basic layout. No problem!
+
+
+(1) Find out the current fuse (here example values)
+
+The LOW byte of the fuse
+
+    avrdude -p atmega8 -c avrispmkII -P usb -U lfuse:r:h:h
+    ...
+    cat h
+    0xdf
+
+The HIGH byte of the fuse
+
+    avrdude -p atmega8 -c avrispmkII -P usb -U hfuse:r:h:h
+    ...
+    cat h
+    0xca
+
+(2) Enter the values to the fuse calculator into the appropriate input
+    field under 'Current Settings' and click
+
+    'Apply values'
+
+This sets all parameters in the the calculator to the appropriate values
+for your current ATmega8 MC. If you find that MC frequency is 8MHz already,
+you're done. If not:
+
+(3) Under 'Features' change frequency to:
+
+    "Int. RC Osc. 8KHz; Start-up time: 6CK + 64ms; [CKSEL=0100 SUT=10]"
+
+(4) Click "Apply manual fuse bit settings""
+
+(5) Under "AVRDUDE arguments" we find the parameters for the command line
+    for example these:
+
+    "-U lfuse:w:0xe4:m -U hfuse:w:0xca:m"
+
+These parameters are to be appended on your avrdude command like this:
+
+AGAIN: IT'S A FUSE WE ARE CHANGING. THINK ABOUT IT!
+       THE COMMAND MAY BLOW UP YOUR CHIP IMMIDIATELY!
+
+avrdudo -p atmega8 -c avrispmkII -P usb -U lfuse:w:0xe4:m -U hfuse:w:0xca:m
+
+
+If you wish to use the newly setup chip with Arduino IDE, you need to
+append a device into "boards.txt". After this, the Arduino IDE should
+be able to compile and upload your programs to your slowed down chip.
+
+This is the device definiton for "boards.txt"
+
+##############################################################
+
+bbatmega8.name=Breadboard ATmega8
+
+bbatmega8.upload.protocol=arduino
+bbatmega8.upload.maximum_size=7168
+bbatmega8.upload.speed=9600
+
+bbatmega8.bootloader.low_fuses=0xe4
+bbatmega8.bootloader.high_fuses=0xca
+bbatmega8.bootloader.path=atmega8
+bbatmega8.bootloader.file=ATmegaBOOT.hex
+bbatmega8.bootloader.unlock_bits=0x3F
+bbatmega8.bootloader.lock_bits=0x0F
+
+bbatmega8.build.mcu=atmega8
+bbatmega8.build.f_cpu=8000000L
+bbatmega8.build.core=arduino
+bbatmega8.build.variant=standard
+
