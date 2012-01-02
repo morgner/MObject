@@ -148,7 +148,7 @@ char ratio(int input)
   
   // The sensor response is a sinus curve. We try to expand the middle part
   // of the curve to stabelize output mapping. Instead of using 1/3 of the
-  // difference, we interprete only 20% of the caps of the sinus curve to find
+  // amplitude, we interprete only 20% of the caps of the sinus curve to find
   // out with sector of rotation we are in. We need a mapping _like_ this:
   //
   //     0° => 0
@@ -169,8 +169,8 @@ char ratio(int input)
 
    The main loop reads input from 3 acceleromter axes and writes output
    mapped to 3 states to PWM D/A output to set 3 LEDs to 'off' 'half on'
-   and 'on'. Also it falshes one LED to signalize a change from one valid
-   position to another one.
+   and 'on'. Also it falshes a fourth LED to signalize a change from one
+   valid position to another one.
    
    There are 6 discrete valid positions:
 
@@ -223,7 +223,7 @@ void loop()
 
   // wait 10 milliseconds before the next loop for the analog-to-digital
   // converter to settle after the last reading - unsure if we really
-  // need this. I found no documentation about this and proctical studies
+  // need this. I found no documentation about this and practical studies
   // don't support this theory. But we are analysing, so no complaints here
   delay(10);
   } // end of main loop
