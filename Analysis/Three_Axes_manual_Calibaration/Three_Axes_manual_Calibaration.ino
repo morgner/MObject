@@ -156,5 +156,6 @@ void loop() {
   // wait 10 milliseconds before the next loop
   // for the analog-to-digital converter to settle
   // after the last reading:
-  delay(1000);                     
+  delay(1000);
+  // but we wait 1s to get a chance to read the results from the serial monitor!
 }
