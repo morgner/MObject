@@ -19,7 +19,7 @@ output sounds depending on the position of the object in space.
 Currently the state of the art of MObject is to change the sound produced to
 one out of six depending on it's orientation in the world. Next two steps are
 
- (1) Change the hardware to ATmega 8 (to speed it up)
+ (1) [done] Change the hardware to ATmega 8 (to speed it up)
  (2) Implement sound-fading to make a more natural sounding object
  (3) Hit/stroke/slap-detection to finally make the object usable
  (4) Design an intelligent PCB to integrate MObject into objects
