@@ -84,11 +84,12 @@
 ; DATA SEGMENT (RAM)
 
 .dseg
-     ; the current sound is 256 samples, we have to ensure, low(adr) can be NULL Sample will be adressed by Y 
-     ; where YH is fix and YL is pSample. This way we do not need any copy of Y-start address, don't need
-     ; pSample as extra  register (pSample is an alias to YL), don't need pointer arithmetics and so  have the
-     ; fastest possibel address calculation for sound production (which should use the shortest amount of time)
-     ; For this we pay with 256 bytes of unused but reserved RAM.
+     ; The current sound is 256 samples, it will be adressed by Y where YH has to be fix and YL has to start
+     ; at 0x00 and rund to 0xFF. This way we do not need any copy of Y-start address, don't need an extra
+     ; register for a pointer to the current sample, don't need pointer arithmetics and so have the fastest
+     ; possibel address calculation for sound production (which should consume the shortest amount of time)
+     ; For this we pay with 256 bytes of unused but preserved SRAM. The sound initialisation procedure will
+     ; pick the first address starting with low byte = 0 inside the SRAM sound buffer
      abSound: .Byte 256*2
 
 ; ============================================================================================================
@@ -98,26 +99,36 @@
 .org 0x0000
      rjmp    setup                ; register 'setup' as Programm Start Routine
 .org OVF1addr
-     rjmp    interrupt_timer_1    ; register 'interrupt_timer_1' as Timer1 Overflow Routine
+     rjmp    interrupt_timer_1    ; register 'interrupt_timer_1' as Timer1 Overflow Routine (sound production)
+                                  ; We rely deeply on this interrupt, so it comes in badly if we would need any
+                                  ; additional interrupt. The problem is, that overflow timer interrupts erase
+                                  ; their time base. The only way to ensure stable timing is to ensure nothing
+                                  ; is preventing this interrupt to be called. If we would need another
+                                  ; interrupt, we have to ensure it is interruptable by this timer interrupt
+;.org OVF0addr
+;    rjmp    interrupt_timer_0    ; register 'interrupt_timer_0' as Timer0 Overflow Routine (don't use it!)
 ;org ADCCaddr
 ;    rjmp    interrupt_adcmr_1    ; register 'interrupt_adcmr_1' as ADC measurement ready
 
 ; ============================================================================================================
 ; Definition Section
 
-.equ ctlInput     = DDRB          ; port control register
+.equ ddrInput     = DDRB          ; port control register
 .equ iopInput     = PORTB         ; input PORT for digital input
 
-.equ ctlADCin     = DDRC          ; port control register
-.equ iopADCin     = PORTC         ; input PORT for digital input
+.equ ddrADCin     = DDRC          ; port control register
+.equ iopADCin     = PORTC         ; input PORT for analog input
 
-.equ ctlSound     = DDRD          ; port control register fpr sound output
+.equ ddrSound     = DDRD          ; port control register fpr sound output
 .equ iopSound     = PORTD         ; output PORT for DA converter (8bit sound sample output)
 
 ; ------------------------------------------------------------------------------------------------------------
-;  A4 = 440 Hz
-; Interrupt Generator has to be adjusted to 256*'A5' = 112640 Hz => 142 cycles to do what's necessary
-; 2 byte timing, here with value 0xFF72 (142) for 112640 Hz on 16MHz MC
+;  A4 = 440 Hz (16MHz MC) or A3 = 220 (8MHz MC)
+; 16MHz Interrupt Generator has to be adjusted to 256*'A4' = 112640 Hz => 142 cycles to do what's necessary
+; 16MHz Interrupt Generator has to be adjusted to 256*'A3' =  56320 Hz => 284 cycles to do what's necessary
+;  8MHz Interrupt Generator has to be adjusted to 256*'A3' =  56320 Hz => 142 cycles to do what's necessary
+
+; 2 byte timing, here with value 0xFF72 (142) for 112640 Hz on 16MHz MC or 56320 Hz in 8MHz
 .equ    TPBH      = 0xff          ; timer preset (high)
 .equ    TPBL      = 0x7F          ; timer preset (low)
 
@@ -128,7 +139,6 @@
 ;def XH           = r27           ; X high byte
 .def Y            = r28           ; Y word
 .def YL           = r28           ; Y low byte
-.def pSample      = r28           ; alias to YL, will be initialised by sound-to-RAM copy procedure (YL)
 .def YH           = r29           ; Y high byte
 .def Z            = r30           ; Z word
 .def ZL           = r30           ; Z low byte
@@ -136,6 +146,11 @@
 
 ; ------------------------------------------------------------------------------------------------------------
 ; preconfiguration values for ADC
+; The axes sequence is calculated by decrementing the curent axes value. This is because the axes sensores are
+; ordered in a way that moving from one bitmap to the next one can be done by decrementing the numerical value
+; of the bit mask. For example Naxis (no axis) is determined by a bitmask calculated by Zaxis-1.
+; If you modify the mapping between sensore pins and axes, you need to adjust all axis selection code and the
+; code determining the Naxis situation accordingly!
 
 .equ Xaxis  = (1 << MUX2) | (1 << MUX1) | (1 << MUX0)                       ; X => ADC7
 .equ Yaxis  = (1 << MUX2) | (1 << MUX1) | (0 << MUX0)                       ; Y => ADC6
@@ -145,10 +160,10 @@
 ; ADPS2  ADPS1  ADPS0  Faktor  MC=8MHz  MC=16MHz
 ; -----  -----  -----  ------  -------  --------
 ;   0      1      1       8   1.000kHz
-;   1      0      0      16     500kHz  1.000kHz
+; * 1      0      0      16     500kHz  1.000kHz
 ;   1      0      1      32     250kHz    500kHz
 ;   1      1      0      64     125kHz    250kHz
-;   1      1      1     128      62kHz    125kHz
+; * 1      1      1     128      62kHz    125kHz
 
 .equ AdcPrescale  = (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0)              ; Scale: 128 => 125kHz on 16MHz
 
@@ -159,7 +174,6 @@
 .endif
 
 .equ AdcMuxConfig = (1 << REFS0) | (1 << ADLAR) | (0 << MUX3)               ; REF=VCC, Left Aligned Result
-
 
 ; inMin     = 273 0x0111 Sensor minimal value (measured+manipulated)
 ; inMax     = 432 0x01B0 Sensor maximal value (measured+manipulated)
@@ -182,22 +196,22 @@
 .equ xyzBACK      = 0x05          ; to back
 .equ xyzFRNT      = 0x25          ; to front
 
-; logical orientations later used to select actions
-.equ vecUPRT      = 0             ; 1 upright
-.equ vecLEFT      = 1             ; 2 left side
-.equ vecDOWN      = 2             ; 3 down side
-.equ vecRGHT      = 3             ; 4 right side
-.equ vecBACK      = 4             ; 5 to back
-.equ vecFRNT      = 5             ; 6 to front
+; logical orientations later used to select actions by index starting with 0
+.equ vecUPRT      = 0             ; upright
+.equ vecLEFT      = 1             ; left side
+.equ vecDOWN      = 2             ; down side
+.equ vecRGHT      = 3             ; right side
+.equ vecBACK      = 4             ; to back
+.equ vecFRNT      = 5             ; to front
 
-.equ vecCHANGED   = 0x01          ; flag, vector had changed
+.equ fCHANGED     = 0x01          ; flag, something was changed
 
 ; low register variables
 .def bTPBL        = r1            ; timer preset (low)
 .def bTPBH        = r2            ; timer preset (high)
 .def xyzLast      = r3            ; last seen xyz-combined byte
 .def xyzNew       = r4            ; new calcualted xyz-combined byte
-.def vecOrient    = r5            ; vector of orientation (0-5)
+.def vecOrient    = r5            ; vector of current orientation (0-5)
 .def xyzChanged   = r6            ; accumulator for orientation change state
 .def bCopyAccu    = r7            ; accumulator for copying bytes from FLASH to RAM
 .def bSample      = r8            ; value of curent sample in sound
@@ -207,7 +221,7 @@
 .def valNULL      = r16           ; simply a NULL
 .def bTemp        = r17           ; a short sighted temporary value
 .def bInput       = r18           ; see it as 'input accumulator'
-.def bCurrentAxis = r19           ; STATUS:the axis the current measuremnt is running on
+.def bCurrentAxis = r19           ; STATE: axis the current measuremnt is running on (Xaxes, Yaxes oder Zaxes)
 
 
 ; ============================================================================================================
@@ -227,7 +241,7 @@
             ldi     bTemp,        xyzUPRT                 ; 1   if we wish to prevent unneccesary action
             mov     xyzLast,      bTemp                   ; 1   we have to set the associated xyzLast value
 
-            ldi     bTemp,        vecCHANGED              ; 1   we pretent to had a change of orientaiton (which we
+            ldi     bTemp,        fCHANGED                ; 1   we pretent to had a change of orientaiton (which we
             mov     xyzChanged,   bTemp                   ; 1   had indeed) to ensure any side processing will execute
 
             ldi     bCurrentAxis, Xaxis                   ; 1   at the first measurement, we test axis X
@@ -262,10 +276,10 @@
 
 ; define PORTC as ADC input
 
-            out     ctlADCin,     valNULL                 ; 1   all pins to input mode
+            out     ddrADCin,     valNULL                 ; 1   all pins to input mode
 
             ldi     bTemp,        0xFF                    ; 1   all pins
-            out     ctlSound,     bTemp                   ; 1   set all pins to output mode for sound
+            out     ddrSound,     bTemp                   ; 1   set all pins to output mode for sound
 
 ; initialize destination/source address for RAM-sound starting by YL=0
             ldi     YL,           low (abSound)           ; 1   sound wave into RAM
@@ -326,7 +340,7 @@
             tst     xyzChanged                            ; 1   if orientation has not changed
             breq    Yield_01_end                          ; 1-2   we do nothings about it
 ; are we ready to copy without accoustic side effect?
-            tst     pSample                               ; 1   we only change the sound if it will not click
+            tst     YL                                    ; 1   we only change the sound if it will not click
             brne    Yield_02                              ; 1-2   otherwise we try later
 ; calculate the source address for the sound
             ldi     ZL,           low (awSoundFlash*2)    ; 1   sound address in FLASH
@@ -359,7 +373,7 @@
 
 .ifdef ATmega8
             sbic    ADCSRA,       ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
-.else ; 2:6
+.else ; 2:4
             lds     bTemp,        ADCSRA                  ; 2   Gather Axis Position And Select Next Axis?
             sbrc    bTemp,        ADSC                    ; 1-3 if ADSC in ADCSRA is OFF, measurement is done
 .endif
@@ -417,6 +431,8 @@
             breq    CyclusComplete                        ; 1-2   so we have to recognize what we are dealing with
             rjmp    AxisSelected                          ; 2     otherwise, we simply measure the next axis
      CyclusComplete:
+; should be 'ldi' but ldi doen't work with low register, but 'ori' fits bcause of the specific bit masks in use!
+
             ori     bCurrentAxis, Xaxis                   ; 1   at first, after we finished this, we start with X axis
 
 ; all three axis were read, now we have to deal with the result
@@ -447,7 +463,7 @@
             breq    ValidOrientation                      ; 1-2
             ldi     bTemp,        vecFRNT                 ; 1
             cpi     bInput,       xyzFRNT                 ; 1
-            breq    ValidOrientation                      ; 1-2 => 19 cycles to find out if and what
+            breq    ValidOrientation                      ; 1-2 => up to 19 cycles to find out if and what
 
             rjmp    ResetBuffers                          ; 2   the orientation is not valid, we irgnore it
      ValidOrientation:
@@ -458,7 +474,7 @@
      ResetBuffers:
             clr     xyzNew                                ; 1   clear buffer for bit manipulaiton
 
-; next axis for measurement ist set, now we start the next measurement
+; next axis for measurement is set, now we start the next measurement
 
      AxisSelected:
             ldi     bTemp,        AdcMuxConfig            ; 1   initializing measurement for the nex axis
@@ -510,7 +526,7 @@
 ; we do not use "ld bSample, Y+" because we don't want to increment YH!
 
             ld      bSample,      Y                       ; 1   we get the value, we use it later
-            inc     pSample                               ; 1   next time, next sample (pSample is YL)
+            inc     YL                                    ; 1   next time, next sample
 
      interrupt_timer_1_end:
 
@@ -524,11 +540,11 @@ awSoundFlash:                                           ; little endian words - 
 
 ; The length of a sound is (in truth) 257 samples! we play 256 samples per sound repitition and expect the
 ; next sample after the last in store to be the first of the new (and old) curve. Thus we dont repeat a sample
-; This is espcialy to know if you wsh to design new sounds.
-; Remember: Ths whole programm is only for 256bytes stored samples per sound. There is no way around this
-; Limitation besides to rewrite most of the code and redesing the sound length recognition. Because:
-; This code has none. It relies on the fact, that a byte can count from 0 to 255 (which makes 256 steps)
-; The first sample of a sound has to be '0' for accoustic reasons.
+; This is espcialy to know if you wish to design new sounds.
+; Remember: This whole programm is only for 256 samples per sound. There is no way around this limitation
+; besides to rewrite most of the code and desing a sound length recognition. Because:
+; This code has none. It relies on the fact, that a byte counts from 0 to 255 (which makes 256 steps)
+; The first sample of a sound should be '0' to prevent clicking on sound start and stopp.
 
 ; possible resolution
 ; ======================
@@ -556,7 +572,7 @@ LEFT: .dw 0x0300,0x170D,0x211C,0x2826,0x312A,0x2D32,0x322E,0x4139,0x4743,0x4A4B,
       .dw 0xF2E8,0xFFFC,0xFCFE,0xFBFA,0xF6F9,0xF8F8,0xEEF5,0xE8E9,0xECE8,0xF2F1,0xF6F2,0xFDF9,0xF2FA,0xE8EC,0xDCE2,0xDFDE,0xDDDD,0xCAD5,0xBDC2,0xB8BB,0xA4AE,0x999E,0x8A91,0x8488,0x8382,0x8B86,0x968F,0x9799,0x868F,0x8A86,0x8487,0x8485
       .dw 0x8182,0x7E80,0x7B7D,0x7B7A,0x7578,0x7979,0x6870,0x6966,0x7470,0x7C79,0x7B7D,0x7577,0x666E,0x5B61,0x4751,0x4244,0x353D,0x222A,0x2022,0x2321,0x171D,0x0D13,0x0205,0x0906,0x0D0D,0x130E,0x1717,0x1116,0x070A,0x0907,0x0406,0x0305
 
-; sin( x ) + ( (index+1) mod 32 ) / 128 with x from 0 to 2pi/257*256 anf index from 0 to 255
+; sin( x ) + ( (index+1) mod 32 ) / 128 with x from 0 to 2pi/257*256 and index from 0 to 255
 
 DOWN: .dw 0x0201,0x0403,0x0706,0x0908,0x0C0B,0x100E,0x1311,0x1715,0x1B19,0x1F1D,0x2321,0x2826,0x2D2A,0x3230,0x3735,0x212C,0x2623,0x2C29,0x322F,0x3935,0x3F3C,0x4642,0x4C49,0x5350,0x5A57,0x615E,0x6865,0x6F6C,0x7773,0x7E7A,0x8582,0x707B
       .dw 0x7874,0x7F7B,0x8683,0x8D8A,0x9591,0x9C98,0xA39F,0xAAA6,0xB1AD,0xB8B4,0xBEBB,0xC5C2,0xCBC8,0xD2CE,0xD8D5,0xC1CC,0xC7C4,0xCCC9,0xD2CF,0xD7D4,0xDBD9,0xE0DE,0xE4E2,0xE9E7,0xEDEB,0xF0EE,0xF4F2,0xF7F5,0xFAF8,0xFCFB,0xFEFD,0xE4F1
