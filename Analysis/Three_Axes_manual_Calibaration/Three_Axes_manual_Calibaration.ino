@@ -43,8 +43,7 @@
  
  */
 
-// These constants won't change.  They're used to give names
-// to the pins used:
+// Names to the IO pins
 const int analogInPinZ = A5;  // Analog input pin that the potentiometer is attached to
 const int analogInPinY = A6;  // Analog input pin that the potentiometer is attached to
 const int analogInPinX = A7;  // Analog input pin that the potentiometer is attached to
@@ -53,9 +52,11 @@ const int analogOutPinZ = 11; // Analog output pin that the LED is attached to
 const int analogOutPinY = 10; // Analog output pin that the LED is attached to
 const int analogOutPinX =  9; // Analog output pin that the LED is attached to
 
+// limits
 const int inLow  = 280; // 270
 const int inHigh = 425; // 441
 
+// output levels
 const int outLow  = 0;
 const int outHigh = 3;
 
@@ -69,7 +70,8 @@ const char aiX = 0;
 const char aiY = 2;
 const char aiZ = 4;
 
-void setup() {
+void setup()
+  {
   // initialize serial communications at 9600 bps:
   Serial.begin(9600);
   
@@ -81,7 +83,7 @@ void setup() {
   aMinMax[aiY+1] = inHigh;
   aMinMax[aiZ  ] = inLow;
   aMinMax[aiZ+1] = inHigh;
-}
+  }
 
 // map the sensor output into a range of 0 to 2
 char ratio(int input, char index)
@@ -89,7 +91,7 @@ char ratio(int input, char index)
   if (input < aMinMax[index  ]) aMinMax[index  ] = input;
   if (input > aMinMax[index+1]) aMinMax[index+1] = input;
 
-  char jump = (aMinMax[index+1]-aMinMax[index])/3;
+  char jump = (aMinMax[index+1] - aMinMax[index])/3;
   int v = input - aMinMax[index];
 
   if (v > 2*jump) return 2;
@@ -98,7 +100,8 @@ char ratio(int input, char index)
   }
 
 // read values, calculate results, output results
-void loop() {
+void loop()
+  {
   // read the analog in value:
   sensorValue = analogRead(analogInPinX);            
   // map it to the range of the analog out:
@@ -158,4 +161,4 @@ void loop() {
   // after the last reading:
   delay(1000);
   // but we wait 1s to get a chance to read the results from the serial monitor!
-}
+  }
