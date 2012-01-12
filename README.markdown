@@ -1,6 +1,8 @@
 # MObject
 
-is a physical, 'intelligent' object to be used in music and art.
+## What it is
+
+MObject is a physical, 'intelligent' object to be used in music and art.
 
 It responds to handling and action, both are yet to be defined.
 
@@ -14,7 +16,7 @@ output sounds depending on the position of the object in space.
  * If you're in a hurry and in search of the 'real code' goto 'Building-Blocks'.
  * If you whish to see some C/C++ code for your research, goto 'Analysis'.
 
-# STATE OF THE ART
+## STATE OF THE ART
 
 Currently the state of the art of MObject is to change the sound produced to
 one out of six depending on it's orientation in the world. Next two steps are
