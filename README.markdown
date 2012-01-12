@@ -13,8 +13,8 @@ the experiments and feasibility studies.
 Currently the LEDs are used as 'debugging display' and the DAC is used to
 output sounds depending on the position of the object in space.
 
- * If you're in a hurry and in search of the 'real code' goto 'Building-Blocks'.
- * If you whish to see some C/C++ code for your research, goto 'Analysis'.
+ * If you're in a hurry and in search of the *real code* goto 'Building-Blocks'.
+ * If you whish to see some *C/C++ code* for your research, goto 'Analysis'.
 
 ## STATE OF THE ART
 
