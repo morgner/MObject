@@ -88,7 +88,7 @@ These parameters are to be appended on your avrdude command like this:
 AGAIN: IT'S A FUSE WE ARE CHANGING. THINK ABOUT IT!
        THE COMMAND MAY BLOW UP YOUR CHIP IMMIDIATELY!
 
-avrdudo -p atmega8 -c avrispmkII -P usb -U lfuse:w:0xe4:m -U hfuse:w:0xca:m
+avrdude -p atmega8 -c avrispmkII -P usb -U lfuse:w:0xe4:m -U hfuse:w:0xca:m
 
 
 If you wish to use the newly setup chip with Arduino IDE, you need to
