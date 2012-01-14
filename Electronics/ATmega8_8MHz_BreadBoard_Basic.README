@@ -2,9 +2,9 @@ Only for the Author as note! You will not do this, really!
 
 The author did all this only to:
 
- a) minimize energy consumtion of the product
+ a) minimize energy consumption of the product
  b) reduce complexity of the circuit
- c) simplify manufacturing of the product
+ c) simplify manufacturing of the final product
 
 8 MHz means 50% less cycles per time unit as 16 MHz
 To make it more understandable:
@@ -88,7 +88,7 @@ These parameters are to be appended on your avrdude command like this:
 AGAIN: IT'S A FUSE WE ARE CHANGING. THINK ABOUT IT!
        THE COMMAND MAY BLOW UP YOUR CHIP IMMIDIATELY!
 
-avrdude -p atmega8 -c avrispmkII -P usb -U lfuse:w:0xe4:m -U hfuse:w:0xca:m
+avrdode -p atmega8 -c avrispmkII -P usb -U lfuse:w:0xe4:m -U hfuse:w:0xca:m
 
 
 If you wish to use the newly setup chip with Arduino IDE, you need to
