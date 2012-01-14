@@ -1,4 +1,4 @@
-==Building-Blocks==
+# Building-Blocks
 
 Here we build the 'real thing'!
 
@@ -8,7 +8,7 @@ performance.
 
 MObject is expected to do multiple things at the same time. The file
 MObject.asm contains the complete code for MObject. All other files contain
-or will contain specialised parts of MObject code.
+contain specialised parts of MObject code.
 
 These parts are for demonstration and research.
 
