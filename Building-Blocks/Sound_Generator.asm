@@ -75,7 +75,7 @@
 ; ============================================================================================================
 ; definitionsection
 
-.equ inpTrigger  = PORTB ; input PORT for digital triggers (Sound Signal Test)
+.equ inpTrigger  = PINB  ; input PORT for digital triggers (Sound Signal Test)
 .equ mskTrigger  = 0x03  ; input bits (2 => 0000 0011)
 
 .equ ctlSignal   = DDRB  ; port control register
