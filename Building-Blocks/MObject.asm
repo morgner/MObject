@@ -287,10 +287,10 @@
             cpse    YL,           valNULL                 ; 1-3 is YL already NULL ?
             inc     YH                                    ; 1   no => we use the next higher adress with YL = 0
 
-; define PORTB as output digital output
+; define iopInput as output digital output
 
             ldi     bTemp,        0xFF                    ; 1   all pins
-            out     DDRB,         bTemp                   ; 1   set output pins for PORTB
+            out     ddrInput,     bTemp                   ; 1   set output pins for iopInput
 
 .ifdef ATmega8
 ;           out     DIDR0,        valNULL                 ; 0   not at ATmega8?
@@ -518,7 +518,7 @@
             out     iopSound,     bSample                 ; 1   send sample to output
             clr     bSample                               ; 1   we had it played, so we clear it off
 
-            out     PORTB,        vecOrient               ; 1  show what we got (Orientation 0..6)
+            out     iopInput,     vecOrient               ; 1  show what we got (Orientation 0..6)
 
      play:
 
