@@ -27,7 +27,7 @@ try to change your micro controllers most important fuse.
 Changing the fuse in the ATmega8 to use the internal 8MHz clock
 ---------------------------------------------------------------
 
-You need the ATmega inserted in some circuit capable to provide acces for a
+You need the ATmega inserted in some circuit capable to provide access for a
 ISP programmer. An Arduino UNO board with socket for the ATmega for example.
 
 Also you need an ISP programmer
@@ -68,7 +68,7 @@ The HIGH byte of the fuse
 
     'Apply values'
 
-This sets all parameters in the the calculator to the appropriate values
+This sets all parameters in the calculator to the appropriate values
 for your current ATmega8 MC. If you find that MC frequency is 8MHz already,
 you're done. If not:
 
@@ -92,7 +92,7 @@ avrdode -p atmega8 -c avrispmkII -P usb -U lfuse:w:0xe4:m -U hfuse:w:0xca:m
 
 
 If you wish to use the newly setup chip with Arduino IDE, you need to
-append a device into "boards.txt". After this, the Arduino IDE should
+append the device into "boards.txt". After this, the Arduino IDE should
 be able to compile and upload your programs to your slowed down chip.
 
 This is the device definiton for "boards.txt"
